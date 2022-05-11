@@ -796,7 +796,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogWithdrawal(account, tAmount);
     }
 
-    modifier OnlyBridge() {
+    modifier onlyBridge() {
         require(msg.sender == bridge, "Only bridge can perform this action");
         _;
     }
@@ -808,7 +808,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogSetBridge(msg.sender, bridge);
     }
 
-    function mint(address account, uint256 tAmount) external OnlyBridge {
+    function mint(address account, uint256 tAmount) external onlyBridge {
         require(account != address(0), "mint to the zero address");
         uint256 currentRate = _getRate();
         _tTotal += tAmount;
@@ -817,7 +817,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit Transfer(address(0), account, tAmount);
     }
 
-    function burn(address account, uint256 tAmount) external OnlyBridge {
+    function burn(address account, uint256 tAmount) external onlyBridge {
         require(account != address(0), "burn to the zero address");
         uint256 currentRate = _getRate();
         _tTotal -= tAmount;
