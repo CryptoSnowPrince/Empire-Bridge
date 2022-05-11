@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.7;
 
 interface IERC20 {
     /**
@@ -687,14 +687,28 @@ contract EmpireToken is Context, IERC20, Ownable {
 
     uint256 private numTokensSellToAddToLiquidity = 8000 * 10**9;
 
-    event SwapAndLiquifyEnabledUpdated(bool enabled);
-    event SetAutomatedMarketMakerPair(address pair);
-    event RemoveAutomatedMarketMakerPair(address pair);
-    event SwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity);
-    event SwapAndDistribute(uint256 forMarketing, uint256 forLiquidity, uint256 forBurn, uint256 forTeam);
-    event SwapETHForTokens(uint256 amountIn, address[] path);
-    event WithdrawalBNB(address account, uint256 amount);
-    event Withdrawal(address account, uint256 amount);
+    event LogSetAutomatedMarketMakerPair(address indexed setter, address pair);
+    event LogRemoveAutomatedMarketMakerPair(address indexed setter, address pair);
+    event LogSwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity);
+    event LogSwapAndDistribute(uint256 forMarketing, uint256 forLiquidity, uint256 forBurn, uint256 forTeam);
+    // event SwapETHForTokens(uint256 amountIn, address[] path);
+    event LogSwapAndLiquifyEnabledUpdated(address indexed setter, bool enabled);
+    event LogSetBridge(address indexed setter, address bridge);
+    event LogSetSwapTokensAmount(address indexed setter, uint256 amount);
+    event LogExcludeFromFee(address indexed setter, address account);
+    event LogIncludeInFee(address indexed setter, address account);
+    event LogSetMarketingWallet(address indexed setter, address marketingWallet);
+    event LogSetBurnWallet(address indexed setter, address burnWallet);
+    event LogSetTeamWallet(address indexed setter, address teamWallet);
+    event LogSetBuyFees(address indexed setter, BuyFee buyFee);
+    event LogSetSellFees(address indexed setter, SellFee sellFee);
+    event LogSetRouterAddress(address indexed setter, address router);
+    event LogSetPairAddress(address indexed setter, address pair);
+    event LogUpdateGasForProcessing(address indexed setter, uint256 value);
+    event LogUpdateLiquidityWallet(address indexed setter, address liquidityWallet);
+    event LogWithdrawalBNB(address indexed account, uint256 amount);
+    event LogWithdrawToken(address indexed token, address indexed account, uint256 amount);
+    event LogWithdrawal(address indexed account, uint256 tAmount);
 
     modifier lockTheSwap() {
         inSwapAndLiquify = true;
@@ -751,16 +765,16 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
-    function setAutomatedMarketMakerPair(address pair) public onlyOwner {
+    function setAutomatedMarketMakerPair(address pair) external onlyOwner {
         automatedMarketMakerPairs[pair] = true;
 
-        emit SetAutomatedMarketMakerPair(pair);
+        emit LogSetAutomatedMarketMakerPair(msg.sender, pair);
     }
 
-    function removeAutomatedMarketMakerPair(address pair) public onlyOwner {
+    function removeAutomatedMarketMakerPair(address pair) external onlyOwner {
         automatedMarketMakerPairs[pair] = false;
 
-        emit RemoveAutomatedMarketMakerPair(pair);
+        emit LogRemoveAutomatedMarketMakerPair(msg.sender, pair);
     }
 
     function name() external pure returns (string memory) {
@@ -867,7 +881,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         return rAmount / currentRate;
     }
 
-    function excludeFromReward(address account) public onlyOwner {
+    function excludeFromReward(address account) external onlyOwner {
         require(!_isExcluded[account], "Account is already excluded");
         if (_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
@@ -1100,7 +1114,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         uint256 forTeam = (contractTokenBalance * (buyFee.team + sellFee.team)) / total;
         sendToTeam(forTeam);
 
-        emit SwapAndDistribute(forMarketing, forLiquidity, forBurn, forTeam);
+        emit LogSwapAndDistribute(forMarketing, forLiquidity, forBurn, forTeam);
     }
 
     function sendToBurn(uint256 tBurn) private {
@@ -1139,7 +1153,7 @@ contract EmpireToken is Context, IERC20, Ownable {
 
         addLiquidity(otherHalf, newBalance);
 
-        emit SwapAndLiquify(half, newBalance, otherHalf);
+        emit LogSwapAndLiquify(half, newBalance, otherHalf);
     }
 
     function swapTokensForETH(uint256 tokenAmount) private {
@@ -1252,22 +1266,27 @@ contract EmpireToken is Context, IERC20, Ownable {
 
     function excludeFromFee(address account) external onlyOwner {
         _isExcludedFromFee[account] = true;
+        emit LogExcludeFromFee(msg.sender, account);
     }
 
     function includeInFee(address account) external onlyOwner {
         _isExcludedFromFee[account] = false;
+        emit LogIncludeInFee(msg.sender, account);
     }
 
     function setMarketingWallet(address payable newWallet) external onlyOwner {
         marketingWallet = newWallet;
+        emit LogSetMarketingWallet(msg.sender, marketingWallet);
     }
 
     function setBurnWallet(address payable newWallet) external onlyOwner {
         burnWallet = newWallet;
+        emit LogSetBurnWallet(msg.sender, burnWallet);
     }
 
     function setTeamWallet(address payable newWallet) external onlyOwner {
         teamWallet = newWallet;
+        emit LogSetTeamWallet(msg.sender, teamWallet);
     }
 
     function setBuyFees(
@@ -1282,6 +1301,8 @@ contract EmpireToken is Context, IERC20, Ownable {
         buyFee.burn = _burn;
         buyFee.tax = _tax;
         buyFee.team = _team;
+
+        emit LogSetBuyFees(msg.sender, buyFee);
     }
 
     function setSellFees(
@@ -1296,21 +1317,35 @@ contract EmpireToken is Context, IERC20, Ownable {
         sellFee.burn = _burn;
         sellFee.tax = _tax;
         sellFee.team = _team;
+
+        emit LogSetSellFees(msg.sender, sellFee);
     }
 
     function setRouterAddress(address newRouter) external onlyOwner {
-        IUniswapV2Router02 _newUniswapRouter = IUniswapV2Router02(newRouter);
-        uniswapV2Pair = IUniswapV2Factory(_newUniswapRouter.factory()).createPair(address(this), _newUniswapRouter.WETH());
-        uniswapV2Router = _newUniswapRouter;
+        // IUniswapV2Router02 _newUniswapRouter = IUniswapV2Router02(newRouter);
+        // uniswapV2Pair = IUniswapV2Factory(_newUniswapRouter.factory()).createPair(address(this), _newUniswapRouter.WETH());
+        // uniswapV2Router = _newUniswapRouter;
+        uniswapV2Router = IUniswapV2Router02(newRouter);
+
+        emit LogSetRouterAddress(msg.sender, newRouter);
+    }
+
+    function setPairAddress(address newPair) external onlyOwner {
+        uniswapV2Pair = newPair;
+
+        emit LogSetPairAddress(msg.sender, newPair);
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) external onlyOwner {
         swapAndLiquifyEnabled = _enabled;
-        emit SwapAndLiquifyEnabledUpdated(_enabled);
+
+        emit LogSwapAndLiquifyEnabledUpdated(msg.sender, _enabled);
     }
 
-    function setSwapTokens(uint256 amount) external onlyOwner {
+    function setSwapTokensAmount(uint256 amount) external onlyOwner {
         numTokensSellToAddToLiquidity = amount;
+
+        emit LogSetSwapTokensAmount(msg.sender, amount);
     }
 
     function updateGasForProcessing(uint256 newValue) external onlyOwner {
@@ -1318,37 +1353,41 @@ contract EmpireToken is Context, IERC20, Ownable {
         require(newValue != gasForProcessing, "Cannot update gasForProcessing to same value");
 
         gasForProcessing = newValue;
+
+        emit LogUpdateGasForProcessing(msg.sender, newValue);
     }
 
     function updateLiquidityWallet(address payable newLiquidityWallet) external onlyOwner {
         require(newLiquidityWallet != liquidityWallet, "The liquidity wallet is already this address");
         liquidityWallet = newLiquidityWallet;
-    }
 
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * And sets the liquidity wallet. Can only be called by the current owner.
-     */
-    function _transferOwnership(address payable newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        liquidityWallet = address(newOwner);
-        transferOwnership(newOwner);
+        emit LogUpdateLiquidityWallet(msg.sender, newLiquidityWallet);
     }
 
     function withdrawBNB(address payable account, uint256 amount) external onlyOwner {
-        require(amount <= (address(this)).balance, "incufficient funds");
+        require(amount <= (address(this)).balance, "Incufficient funds");
         account.transfer(amount);
-        emit WithdrawalBNB(account, amount);
+        emit LogWithdrawalBNB(account, amount);
+    }
+
+    /**
+     * @notice Should not be withdrawn scam token.
+     */
+    function withdrawToken(IERC20 token, address account, uint256 amount) external onlyOwner {
+        require(amount <= token.balanceOf(account), "Incufficient funds");
+        require(token.transfer(account, amount), "Transfer Fail");
+
+        emit LogWithdrawToken(address(token), account, amount);
     }
 
     function withdraw(address account, uint256 tAmount) external onlyOwner {
         uint256 currentRate = _getRate();
         uint256 rAmount = tAmount * currentRate;
-        require(rAmount <= _rOwned[address(this)], "incufficient funds");
+        require(rAmount <= _rOwned[address(this)], "Incufficient funds");
         _rOwned[account] = _rOwned[account] + rAmount;
         _rOwned[address(this)] = _rOwned[address(this)] - rAmount;
         if (_isExcluded[account]) _tOwned[account] = _tOwned[account] + tAmount;
-        emit Withdrawal(account, tAmount);
+        emit LogWithdrawal(account, tAmount);
     }
 
     modifier OnlyBridge() {
@@ -1357,7 +1396,10 @@ contract EmpireToken is Context, IERC20, Ownable {
     }
 
     function setBridge(address _bridge) external onlyOwner {
+        require(bridge != _bridge, "Same Bridge!");
         bridge = _bridge;
+
+        emit LogSetBridge(msg.sender, bridge);
     }
 
     function mint(address account, uint256 tAmount) external OnlyBridge {
