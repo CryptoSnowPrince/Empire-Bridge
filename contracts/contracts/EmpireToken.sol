@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.7;
 
-import "@openzeppelin/contract/token/ERC20/IERC20.sol";
-import "@openzeppelin/contract/utils/Address.sol";
-import "@openzeppelin/contract/utils/Context.sol";
-import "@openzeppelin/contract/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IUniswapV2Factory {
     function createPair(address tokenA, address tokenB) external returns (address pair);
