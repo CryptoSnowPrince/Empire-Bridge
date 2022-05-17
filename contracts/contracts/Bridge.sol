@@ -137,6 +137,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         return id;
     }
 
+    // Set functions
     function setValidator(address _validator) external onlyOwner {
         validator = _validator;
         emit LogSetValidator(validator);
@@ -152,6 +153,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         emit LogSetFee(fee);
     }
 
+    // Withdraw functions
     function withdrawETH(address payable recipient) external onlyOwner {
         require(address(this).balance > 0, "Incufficient funds");
 
@@ -174,6 +176,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         emit LogWithdrawalERC20(address(token), recipient, amount);
     }
 
+    // Receive and Fallback functions
     receive() external payable {
         emit LogReceive(msg.sender, msg.value);
     }
