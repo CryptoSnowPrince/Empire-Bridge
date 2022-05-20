@@ -125,7 +125,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         uint256 amount,
         address to,
         uint256 fromChainId
-    ) external onlyValidator whenNotPaused nonReentrant nonContract {
+    ) external onlyValidator whenNotPaused nonReentrant {
         require(
             amount >= minAmount * (10**IBridgeToken(token).decimals()) &&
                 amount <= maxAmount * (10**IBridgeToken(token).decimals()),
@@ -135,7 +135,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
 
         bytes32 hash_ = keccak256(abi.encodePacked(txs, fromChainId));
         require(processedRedeem[hash_] != true, "Redeem already processed");
-        processedRedeem[hash_] == true;
+        processedRedeem[hash_] = true;
 
         IBridgeToken(token).mint(to, amount);
 
