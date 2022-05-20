@@ -5,119 +5,141 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-interface IEmpireToken {
+interface IBridgeToken {
     function mint(address account, uint256 tAmount) external;
 
     function burn(address account, uint256 tAmount) external;
+
+    function decimals() external pure returns (uint8);
 }
 
-/**
- * @dev Interface of the ERC20 standard as defined in the EIP.
- */
 interface IERC20 {
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
-
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
     function balanceOf(address account) external view returns (uint256);
 
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `to`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
     function transfer(address to, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender)
-        external
-        view
-        returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `from` to `to` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool);
 }
 
 contract Bridge is Ownable, Pausable, ReentrancyGuard {
     // state variables
-    address public validator;
+
+    address private validator;
     uint256 public fee = 1 * 10**(18 - 2); // 0.01 Ether
     address payable public TREASURY;
 
+    uint256 public minAmount = 1;
+    uint256 public maxAmount = 10000;
+
+    uint256 private currentNonce = 0;
+
+    mapping(uint256 => bool) public isActiveChain;
+    mapping(address => mapping(uint256 => address)) public bridgeTokenPair;
+    mapping(bytes32 => bool) public processedRedeem;
+
     // events list
+
+    event LogSetFee(uint256 fee);
+    event LogSetValidator(address validator);
+    event LogSetTreasury(address indexed treasury);
+    event LogSetMinAmount(uint256 minAmount);
+    event LogSetMaxAmount(uint256 maxAmount);
+    event LogUpdateActiveChainList(uint256 chainId, bool state);
+    event LogUpdateBridgeTokenPairList(
+        address fromToken,
+        uint256 toChainId,
+        address toToken
+    );
+    event LogFallback(address from, uint256 amount);
+    event LogReceive(address from, uint256 amount);
     event LogWithdrawalETH(address indexed recipient, uint256 amount);
     event LogWithdrawalERC20(
         address indexed token,
         address indexed recipient,
         uint256 amount
     );
-    event LogSetFee(uint256 fee);
-    event LogSetValidator(address validator);
-    event LogSetTreasury(address indexed treasury);
-    event LogFallback(address from, uint256 amount);
-    event LogReceive(address from, uint256 amount);
+    event LogSwap(
+        uint256 indexed nonce,
+        address indexed from,
+        uint256 fromChainId,
+        address fromToken,
+        address to,
+        uint256 toChainId,
+        address toToken,
+        uint256 amount
+    );
+    event LogRedeem(
+        bytes32 txs,
+        address token,
+        uint256 amount,
+        address to,
+        uint256 fromChainId
+    );
 
     constructor(address _validator, address payable _treasury) {
         validator = _validator;
         TREASURY = _treasury;
+    }
+
+    function swap(
+        address token,
+        uint256 amount,
+        address to,
+        uint256 toChainId,
+        uint256 deadline
+    ) external payable whenNotPaused nonReentrant nonContract {
+        require(deadline >= block.timestamp, "Bridge: EXPIRED");
+        require(toChainId != cID(), "Invalid Bridge");
+        require(isActiveChain[toChainId], "toChainId is not Active");
+        require(
+            bridgeTokenPair[token][toChainId] != address(0),
+            "Invalid Bridge Token"
+        );
+        require(
+            amount >= minAmount * (10**IBridgeToken(token).decimals()) &&
+                amount <= maxAmount * (10**IBridgeToken(token).decimals()),
+            "Wrong amount"
+        );
+        require(msg.value >= fee, "Fee is not fulfilled");
+
+        uint256 nonce = currentNonce;
+        currentNonce++;
+
+        // send fee to TREASURY address
+        TREASURY.transfer(msg.value);
+        IBridgeToken(token).burn(msg.sender, amount);
+
+        emit LogSwap(
+            nonce,
+            msg.sender,
+            cID(),
+            token,
+            to,
+            toChainId,
+            bridgeTokenPair[token][toChainId],
+            amount
+        );
+    }
+
+    function redeem(
+        bytes32 txs,
+        address token,
+        uint256 amount,
+        address to,
+        uint256 fromChainId
+    ) external onlyValidator whenNotPaused nonReentrant nonContract {
+        require(
+            amount >= minAmount * (10**IBridgeToken(token).decimals()) &&
+                amount <= maxAmount * (10**IBridgeToken(token).decimals()),
+            "Wrong amount"
+        );
+        require(fromChainId != cID(), "Invalid Bridge");
+
+        bytes32 hash_ = keccak256(abi.encodePacked(txs, fromChainId));
+        require(processedRedeem[hash_] != true, "Redeem already processed");
+        processedRedeem[hash_] == true;
+
+        IBridgeToken(token).mint(to, amount);
+
+        emit LogRedeem(txs, token, amount, to, fromChainId);
     }
 
     function isValidator() internal view returns (bool) {
@@ -129,7 +151,17 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         _;
     }
 
-    function getChainID() public view returns (uint256) {
+    function isContract(address account) internal view returns (bool) {
+        return account.code.length > 0;
+    }
+
+    modifier nonContract() {
+        require(!isContract(msg.sender), "contract not allowed");
+        require(msg.sender == tx.origin, "proxy contract not allowed");
+        _;
+    }
+
+    function cID() public view returns (uint256) {
         uint256 id;
         assembly {
             id := chainid()
@@ -138,6 +170,46 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     }
 
     // Set functions
+
+    function setMinAmount(uint256 _minAmount) external onlyOwner {
+        require(_minAmount <= maxAmount, "MinAmount <= MaxAmount");
+        minAmount = _minAmount;
+
+        emit LogSetMinAmount(minAmount);
+    }
+
+    function setMaxAmount(uint256 _maxAmount) external onlyOwner {
+        require(_maxAmount >= minAmount, "MaxAmount >= MinAmount");
+        maxAmount = _maxAmount;
+
+        emit LogSetMaxAmount(maxAmount);
+    }
+
+    function updateActiveChainList(uint256 chainId, bool isActive)
+        external
+        onlyOwner
+    {
+        isActiveChain[chainId] = isActive;
+        emit LogUpdateActiveChainList(chainId, isActive);
+    }
+
+    function updateBridgeTokenPairList(
+        address fromToken,
+        uint256 toChainId,
+        address toToken
+    ) external onlyOwner {
+        bridgeTokenPair[fromToken][toChainId] = toToken;
+        emit LogUpdateBridgeTokenPairList(fromToken, toChainId, toToken);
+    }
+
+    function setPause() external onlyOwner {
+        _pause();
+    }
+
+    function setUnpause() external onlyOwner {
+        _unpause();
+    }
+
     function setValidator(address _validator) external onlyOwner {
         validator = _validator;
         emit LogSetValidator(validator);
