@@ -74,7 +74,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         uint256 fromChainId
     );
 
-    constructor(address _validator, address payable _treasury, address _pool) {
+    constructor(address _validator, address payable _treasury) {
         validator = _validator;
         TREASURY = _treasury;
     }
