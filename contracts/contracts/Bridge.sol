@@ -77,7 +77,6 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     constructor(address _validator, address payable _treasury, address _pool) {
         validator = _validator;
         TREASURY = _treasury;
-        POOL = _pool;
     }
 
     function swap(
