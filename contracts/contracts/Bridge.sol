@@ -25,7 +25,6 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     address private validator;
     uint256 public fee = 1 * 10**(18 - 2); // 0.01 Ether
     address payable public TREASURY;
-    address public POOL;
 
     uint256 public minAmount = 1;
     uint256 public maxAmount = 10000;
@@ -139,8 +138,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         require(processedRedeem[hash_] != true, "Redeem already processed");
         processedRedeem[hash_] = true;
 
-        // IBridgeToken(token).mint(to, amount);
-        // IBridgeToken(token).transfer
+        IBridgeToken(token).mint(to, amount);
 
         emit LogRedeem(txs, token, amount, to, fromChainId);
     }
