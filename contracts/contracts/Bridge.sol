@@ -81,10 +81,8 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         address token,
         uint256 amount,
         address to,
-        uint256 toChainId,
-        uint256 deadline
+        uint256 toChainId
     ) external payable whenNotPaused nonReentrant nonContract {
-        require(deadline >= block.timestamp, "Bridge: EXPIRED");
         require(toChainId != cID(), "Invalid Bridge");
         require(
             bridgeTokenPair[token][toChainId] != address(0),
