@@ -22,7 +22,7 @@ interface IERC20 {
 contract Bridge is Ownable, Pausable, ReentrancyGuard {
     // state variables
 
-    address private validator;
+    address public validator;
     uint256 public fee = 1 * 10**(18 - 2); // 0.01 Ether
     address payable public TREASURY;
 
@@ -31,7 +31,6 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
 
     uint256 private currentNonce = 0;
 
-    mapping(uint256 => bool) public isActiveChain;
     mapping(address => mapping(uint256 => address)) public bridgeTokenPair;
     mapping(bytes32 => bool) public processedRedeem;
 
@@ -42,7 +41,6 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     event LogSetTreasury(address indexed treasury);
     event LogSetMinAmount(uint256 minAmount);
     event LogSetMaxAmount(uint256 maxAmount);
-    event LogUpdateActiveChainList(uint256 chainId, bool state);
     event LogUpdateBridgeTokenPairList(
         address fromToken,
         uint256 toChainId,
@@ -88,7 +86,6 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     ) external payable whenNotPaused nonReentrant nonContract {
         require(deadline >= block.timestamp, "Bridge: EXPIRED");
         require(toChainId != cID(), "Invalid Bridge");
-        require(isActiveChain[toChainId], "toChainId is not Active");
         require(
             bridgeTokenPair[token][toChainId] != address(0),
             "Invalid Bridge Token"
@@ -183,14 +180,6 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         maxAmount = _maxAmount;
 
         emit LogSetMaxAmount(maxAmount);
-    }
-
-    function updateActiveChainList(uint256 chainId, bool isActive)
-        external
-        onlyOwner
-    {
-        isActiveChain[chainId] = isActive;
-        emit LogUpdateActiveChainList(chainId, isActive);
     }
 
     function updateBridgeTokenPairList(
