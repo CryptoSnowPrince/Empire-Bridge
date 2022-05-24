@@ -84,7 +84,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     uint256 private _tTotal = 1000000000 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
-    uint256 public gasForProcessing = 500000; // un-used
+    uint256 public gasForProcessing = 500000; // un-used, really don't need? let's think about it more details with googling and research other contract and other case... In more details.
 
     string private constant _name = "EmpireToken";
     string private constant _symbol = "EMPIRE";
