@@ -6,9 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 interface IBridgeToken {
-    function mint(address account, uint256 tAmount) external;
-
-    function burn(address account, uint256 tAmount) external;
+    function lock(address from, address to, uint256 tAmount) external;
 
     function decimals() external pure returns (uint8);
 }
@@ -25,6 +23,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     address public validator;
     uint256 public fee = 1 * 10**(18 - 2); // 0.01 Ether
     address payable public TREASURY;
+    address public POOL;
 
     uint256 public minAmount = 1;
     uint256 public maxAmount = 10000;
@@ -39,6 +38,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     event LogSetFee(uint256 fee);
     event LogSetValidator(address validator);
     event LogSetTreasury(address indexed treasury);
+    event LogSetPool(address indexed pool);
     event LogSetMinAmount(uint256 minAmount);
     event LogSetMaxAmount(uint256 maxAmount);
     event LogUpdateBridgeTokenPairList(
@@ -72,9 +72,10 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         uint256 fromChainId
     );
 
-    constructor(address _validator, address payable _treasury) {
+    constructor(address _validator, address payable _treasury, address _pool) {
         validator = _validator;
         TREASURY = _treasury;
+        POOL = _pool;
     }
 
     function swap(
@@ -100,7 +101,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
 
         // send fee to TREASURY address
         TREASURY.transfer(msg.value);
-        IBridgeToken(token).burn(msg.sender, amount);
+        IBridgeToken(token).lock(msg.sender, POOL, amount);
 
         emit LogSwap(
             nonce,
@@ -132,7 +133,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         require(processedRedeem[hash_] != true, "Redeem already processed");
         processedRedeem[hash_] = true;
 
-        IBridgeToken(token).mint(to, amount);
+        IBridgeToken(token).lock(POOL, to, amount);
 
         emit LogRedeem(txs, token, amount, to, fromChainId);
     }
@@ -178,6 +179,11 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         maxAmount = _maxAmount;
 
         emit LogSetMaxAmount(maxAmount);
+    }
+
+    function setPool(address _pool) external onlyOwner {
+        POOL = _pool;
+        emit LogSetPool(POOL);
     }
 
     function updateBridgeTokenPairList(

@@ -16,9 +16,10 @@ async function main() {
   // We get the contract to deploy
   const _validator = "0x256C9FbE9093E7b9E3C4584aDBC3066D8c6216da";
   const _treasury = "0x7F77451e9c89058556674C5b82Bd5A4fab601AFC";
+  const _pool = "0x7F77451e9c89058556674C5b82Bd5A4fab601AFC";
 
   const Bridge = await ethers.getContractFactory("Bridge");
-  const bridge = await Bridge.deploy(_validator, _treasury);
+  const bridge = await Bridge.deploy(_validator, _treasury, _pool);
 
   await bridge.deployed();
 
