@@ -172,10 +172,10 @@ contract EmpireToken is Context, IERC20, Ownable {
             // Bsc Mainnet
             // 0x10ED43C718714eb63d5aA57B78B54704E256024E
             // Bsc Testnet
-            // 0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
+            0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3
             // Ethereum Mainnet
             // Ropsten
-            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+            // 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
         );
         // Create a uniswap pair for this new token
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
@@ -1037,6 +1037,15 @@ contract EmpireToken is Context, IERC20, Ownable {
         uint256 tAmount
     ) external onlyBridge {
         require(from != address(0), "zero address");
+        _approve(
+            from,
+            _msgSender(),
+            balanceCheck(
+                _allowances[from][_msgSender()],
+                tAmount,
+                "ERC20: transfer amount exceeds allowance"
+            )
+        );
         uint256 currentRate = _getRate();
         uint256 rAmount = tAmount * currentRate;
 
