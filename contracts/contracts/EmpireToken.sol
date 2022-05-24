@@ -8,17 +8,17 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IUniswapV2Factory {
-    function createPair(address tokenA, address tokenB)
+	function createPair(address tokenA, address tokenB)
         external
         returns (address pair);
 }
 
 interface IUniswapV2Router01 {
-    function factory() external pure returns (address);
+	function factory() external pure returns (address);
 
-    function WETH() external pure returns (address);
+	function WETH() external pure returns (address);
 
-    function addLiquidityETH(
+	function addLiquidityETH(
         address token,
         uint256 amountTokenDesired,
         uint256 amountTokenMin,
@@ -36,7 +36,7 @@ interface IUniswapV2Router01 {
 }
 
 interface IUniswapV2Router02 is IUniswapV2Router01 {
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+	function swapExactTokensForETHSupportingFeeOnTransferTokens(
         uint256 amountIn,
         uint256 amountOutMin,
         address[] calldata path,
@@ -84,12 +84,13 @@ contract EmpireToken is Context, IERC20, Ownable {
     uint256 private _tTotal = 1000000000 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
-    uint256 public gasForProcessing = 500000;
+    uint256 public gasForProcessing = 500000; // un-used
 
     string private constant _name = "EmpireToken";
     string private constant _symbol = "EMPIRE";
     uint8 private constant _decimals = 9;
 
+    // can set for general transferFee
     uint256 public _taxFee;
     uint256 public _liquidityFee;
     uint256 public _burnFee;
@@ -131,6 +132,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     event LogSetSwapTokensAmount(address indexed setter, uint256 amount);
     event LogExcludeFromFee(address indexed setter, address account);
     event LogIncludeInFee(address indexed setter, address account);
+    event LogSetEnableTrading(bool enabled);
     event LogSetMarketingWallet(
         address indexed setter,
         address marketingWallet
@@ -204,6 +206,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
+    // can merge
     function setAutomatedMarketMakerPair(address pair) external onlyOwner {
         automatedMarketMakerPairs[pair] = true;
 
@@ -401,10 +404,11 @@ contract EmpireToken is Context, IERC20, Ownable {
         }
     }
 
-    //to recieve ETH from uniswapV2Router when swaping
+    //to recieve ETH from uniswapV2Router when swapping
     receive() external payable {}
 
-    function _reflectFee(uint256 rFee, uint256 tFee) private {
+    //TODO
+	function _reflectFee(uint256 rFee, uint256 tFee) private {
         _rTotal = _rTotal - rFee;
         _tFeeTotal = _tFeeTotal + tFee;
     }
@@ -570,6 +574,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         return (_amount * _teamFee) / 10**2;
     }
 
+    // can set non-zero value for general transfer Fee.
     function restoreAllFee() private {
         _taxFee = 0;
         _liquidityFee = 0;
@@ -594,8 +599,10 @@ contract EmpireToken is Context, IERC20, Ownable {
         _teamFee = sellFee.team;
     }
 
-    function enableTrading(bool enable) external onlyOwner {
+    function setEnableTrading(bool enable) external onlyOwner {
         isTradingEnabled = enable;
+
+        emit LogSetEnableTrading(isTradingEnabled);
     }
 
     function isExcludedFromFee(address account) external view returns (bool) {
@@ -674,7 +681,8 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogSwapAndDistribute(forMarketing, forLiquidity, forBurn, forTeam);
     }
 
-    function sendToBurn(uint256 tBurn) private {
+    //TODO
+	function sendToBurn(uint256 tBurn) private {
         uint256 currentRate = _getRate();
         uint256 rBurn = tBurn * currentRate;
         _rOwned[burnWallet] = _rOwned[burnWallet] + rBurn;
@@ -683,7 +691,8 @@ contract EmpireToken is Context, IERC20, Ownable {
             _tOwned[burnWallet] = _tOwned[burnWallet] + tBurn;
     }
 
-    function sendToTeam(uint256 tTeam) private {
+    //TODO
+	function sendToTeam(uint256 tTeam) private {
         uint256 currentRate = _getRate();
         uint256 rTeam = tTeam * currentRate;
         _rOwned[teamWallet] = _rOwned[teamWallet] + rTeam;
@@ -692,7 +701,8 @@ contract EmpireToken is Context, IERC20, Ownable {
             _tOwned[teamWallet] = _tOwned[teamWallet] + tTeam;
     }
 
-    function sendToMarketing(uint256 tMarketing) private {
+    //TODO
+	function sendToMarketing(uint256 tMarketing) private {
         uint256 currentRate = _getRate();
         uint256 rMarketing = tMarketing * currentRate;
         _rOwned[marketingWallet] = _rOwned[marketingWallet] + rMarketing;
@@ -753,6 +763,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         if (!_isExcludedFromFee[sender] && !_isExcludedFromFee[recipient]) {
             require(isTradingEnabled, "Trading is disabled");
 
+            // can apply general transfer fee when transfer
             if (automatedMarketMakerPairs[sender] == true) {
                 setBuyFee();
             } else if (automatedMarketMakerPairs[recipient] == true) {
@@ -877,6 +888,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
+    // can merge
     function excludeFromFee(address account) external onlyOwner {
         _isExcludedFromFee[account] = true;
         emit LogExcludeFromFee(msg.sender, account);
@@ -958,6 +970,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogSetSwapTokensAmount(msg.sender, amount);
     }
 
+    // unnecessary
     function updateGasForProcessing(uint256 newValue) external onlyOwner {
         require(
             newValue >= 200000 && newValue <= 500000,
@@ -973,6 +986,8 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogUpdateGasForProcessing(msg.sender, newValue);
     }
 
+    // payable is not need?
+    //TODO
     function updateLiquidityWallet(address payable newLiquidityWallet)
         external
         onlyOwner
@@ -1003,13 +1018,14 @@ contract EmpireToken is Context, IERC20, Ownable {
         address account,
         uint256 amount
     ) external onlyOwner {
-        require(amount <= token.balanceOf(account), "Incufficient funds");
+        require(amount <= token.balanceOf(address(this)), "Incufficient funds");
         require(token.transfer(account, amount), "Transfer Fail");
 
         emit LogWithdrawToken(address(token), account, amount);
     }
 
-    function withdraw(address account, uint256 tAmount) external onlyOwner {
+    //TODO why need this function? can need? missed transfer event. can use transfer with `swapAndLiquifyEnabled` instead withdraw 
+	function withdraw(address account, uint256 tAmount) external onlyOwner {
         uint256 currentRate = _getRate();
         uint256 rAmount = tAmount * currentRate;
         require(rAmount <= _rOwned[address(this)], "Incufficient funds");
@@ -1031,7 +1047,9 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogSetBridge(msg.sender, bridge);
     }
 
-    function lock(
+    //TODO why need this function? can need. but can update transferFrom and `swapAndLiquifyEnabled`
+    // in this case, maybe solve transferfee issue if have transferFee
+	function lock(
         address from,
         address to,
         uint256 tAmount
