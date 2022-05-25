@@ -89,11 +89,11 @@ contract EmpireToken is Context, IERC20, Ownable {
     string private constant _symbol = "EMPIRE";
     uint8 private constant _decimals = 9;
 
-    uint256 public _taxFee;
-    uint256 public _liquidityFee;
-    uint256 public _burnFee;
-    uint256 public _marketingFee;
-    uint256 public _teamFee;
+    uint256 public _taxFee = 0;
+    uint256 public _liquidityFee = 0;
+    uint256 public _burnFee = 0;
+    uint256 public _marketingFee = 0;
+    uint256 public _teamFee = 0;
 
     address payable public marketingWallet;
     address public burnWallet;
@@ -104,6 +104,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     address public uniswapV2Pair;
 
     bool inSwapAndLiquify;
+    bool private shouldTakeFee = false;
     bool public swapAndLiquifyEnabled = true;
     bool public isTradingEnabled;
 
@@ -777,8 +778,10 @@ contract EmpireToken is Context, IERC20, Ownable {
             require(isTradingEnabled, "Trading is disabled");
 
             if (automatedMarketMakerPairs[sender] == true) {
+                shouldTakeFee = true;
                 setBuyFee();
             } else if (automatedMarketMakerPairs[recipient] == true) {
+                shouldTakeFee = true;
                 setSellFee();
             }
         }
@@ -793,26 +796,38 @@ contract EmpireToken is Context, IERC20, Ownable {
             _transferStandard(sender, recipient, amount);
         }
 
-        restoreAllFee();
+        if (shouldTakeFee == true) {
+            shouldTakeFee = false;
+            restoreAllFee();
+        }
     }
 
     function _takeFee(
         address sender,
         uint256 tAmount,
         uint256 tLiquidity,
-        uint256 tTransferAmount,
         uint256 tFee,
         uint256 rFee
     ) private {
-        _takeLiquidity(tLiquidity);
-        _takeMarketingAndBurn(
-            calculateMarketingFee(tAmount),
-            calculateBurnFee(tAmount)
-        );
-        _takeTeam(calculateTeamFee(tAmount));
-        _reflectFee(rFee, tFee);
+        if (shouldTakeFee == true) {
+            uint256 tMarketing = calculateMarketingFee(tAmount);
+            uint256 tBurn = calculateBurnFee(tAmount);
+            uint256 tTeam = calculateTeamFee(tAmount);
 
-        emit Transfer(sender, address(this), tAmount - tTransferAmount - tFee);
+            _takeLiquidity(tLiquidity);
+            _takeMarketingAndBurn(tMarketing, tBurn);
+            _takeTeam(tTeam);
+            // reflection
+            _reflectFee(rFee, tFee);
+
+            // rFee, tFee
+            // `tFee` will miss Transfer event and reflect to all token holders.
+            emit Transfer(
+                sender,
+                address(this),
+                tLiquidity + tMarketing + tBurn + tTeam
+            );
+        }
     }
 
     function _transferStandard(
@@ -830,13 +845,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         ) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender] - rAmount;
         _rOwned[recipient] = _rOwned[recipient] + rTransferAmount;
-        _takeLiquidity(tLiquidity);
-        _takeMarketingAndBurn(
-            calculateMarketingFee(tAmount),
-            calculateBurnFee(tAmount)
-        );
-        _takeTeam(calculateTeamFee(tAmount));
-        _reflectFee(rFee, tFee);
+        _takeFee(sender, tAmount, tLiquidity, tFee, rFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
@@ -856,13 +865,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         _rOwned[sender] = _rOwned[sender] - rAmount;
         _tOwned[recipient] = _tOwned[recipient] + tTransferAmount;
         _rOwned[recipient] = _rOwned[recipient] + rTransferAmount;
-        _takeLiquidity(tLiquidity);
-        _takeMarketingAndBurn(
-            calculateMarketingFee(tAmount),
-            calculateBurnFee(tAmount)
-        );
-        _takeTeam(calculateTeamFee(tAmount));
-        _reflectFee(rFee, tFee);
+        _takeFee(sender, tAmount, tLiquidity, tFee, rFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
@@ -882,13 +885,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         _tOwned[sender] = _tOwned[sender] - tAmount;
         _rOwned[sender] = _rOwned[sender] - rAmount;
         _rOwned[recipient] = _rOwned[recipient] + rTransferAmount;
-        _takeLiquidity(tLiquidity);
-        _takeMarketingAndBurn(
-            calculateMarketingFee(tAmount),
-            calculateBurnFee(tAmount)
-        );
-        _takeTeam(calculateTeamFee(tAmount));
-        _reflectFee(rFee, tFee);
+        _takeFee(sender, tAmount, tLiquidity, tFee, rFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
@@ -909,13 +906,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         _rOwned[sender] = _rOwned[sender] - rAmount;
         _tOwned[recipient] = _tOwned[recipient] + tTransferAmount;
         _rOwned[recipient] = _rOwned[recipient] + rTransferAmount;
-        _takeLiquidity(tLiquidity);
-        _takeMarketingAndBurn(
-            calculateMarketingFee(tAmount),
-            calculateBurnFee(tAmount)
-        );
-        _takeTeam(calculateTeamFee(tAmount));
-        _reflectFee(rFee, tFee);
+        _takeFee(sender, tAmount, tLiquidity, tFee, rFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
