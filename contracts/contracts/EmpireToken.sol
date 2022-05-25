@@ -81,7 +81,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     SellFee public sellFee;
 
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1000000000 * 10**9;
+    uint256 private constant _tTotal = 10**9 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
@@ -234,7 +234,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         return _decimals;
     }
 
-    function totalSupply() external view override returns (uint256) {
+    function totalSupply() external pure override returns (uint256) {
         return _tTotal;
     }
 
