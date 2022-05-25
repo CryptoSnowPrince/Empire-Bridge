@@ -95,7 +95,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     uint256 public _marketingFee = 0;
     uint256 public _teamFee = 0;
 
-    address payable public marketingWallet;
+    address public marketingWallet;
     address public burnWallet;
     address public liquidityWallet;
     address public teamWallet;
@@ -150,7 +150,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         address indexed setter,
         address liquidityWallet
     );
-    event LogWithdrawalBNB(address indexed recipient, uint256 amount);
+    event LogWithdrawalETH(address indexed recipient, uint256 amount);
     event LogWithdrawToken(
         address indexed token,
         address indexed recipient,
@@ -169,7 +169,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
 
-    constructor(address payable _marketingWallet, address payable _teamWallet) {
+    constructor(address _marketingWallet, address _teamWallet) {
         _rOwned[_msgSender()] = _rTotal;
 
         marketingWallet = _marketingWallet;
@@ -923,17 +923,17 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogSetExcludeFromFee(msg.sender, account, enabled);
     }
 
-    function setMarketingWallet(address payable newWallet) external onlyOwner {
+    function setMarketingWallet(address newWallet) external onlyOwner {
         marketingWallet = newWallet;
         emit LogSetMarketingWallet(msg.sender, marketingWallet);
     }
 
-    function setBurnWallet(address payable newWallet) external onlyOwner {
+    function setBurnWallet(address newWallet) external onlyOwner {
         burnWallet = newWallet;
         emit LogSetBurnWallet(msg.sender, burnWallet);
     }
 
-    function setTeamWallet(address payable newWallet) external onlyOwner {
+    function setTeamWallet(address newWallet) external onlyOwner {
         teamWallet = newWallet;
         emit LogSetTeamWallet(msg.sender, teamWallet);
     }
@@ -1007,13 +1007,13 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogUpdateLiquidityWallet(msg.sender, newLiquidityWallet);
     }
 
-    function withdrawBNB(address payable recipient, uint256 amount)
+    function withdrawETH(address payable recipient, uint256 amount)
         external
         onlyOwner
     {
         require(amount <= (address(this)).balance, "Incufficient funds");
         recipient.transfer(amount);
-        emit LogWithdrawalBNB(recipient, amount);
+        emit LogWithdrawalETH(recipient, amount);
     }
 
     /**

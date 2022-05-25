@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 interface IBridgeToken {
-    function lock(address from, address to, uint256 tAmount) external;
+    function transferByBridge(address from, address to, uint256 tAmount) external;
 
     function decimals() external pure returns (uint8);
 }
@@ -101,7 +101,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
 
         // send fee to TREASURY address
         TREASURY.transfer(msg.value);
-        IBridgeToken(token).lock(msg.sender, POOL, amount);
+        IBridgeToken(token).transferByBridge(msg.sender, POOL, amount);
 
         emit LogSwap(
             nonce,
@@ -133,7 +133,7 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         require(processedRedeem[hash_] != true, "Redeem already processed");
         processedRedeem[hash_] = true;
 
-        IBridgeToken(token).lock(POOL, to, amount);
+        IBridgeToken(token).transferByBridge(POOL, to, amount);
 
         emit LogRedeem(txs, token, amount, to, fromChainId);
     }
