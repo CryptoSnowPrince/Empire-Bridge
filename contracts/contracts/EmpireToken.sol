@@ -150,13 +150,18 @@ contract EmpireToken is Context, IERC20, Ownable {
         address indexed setter,
         address liquidityWallet
     );
-    event LogWithdrawalBNB(address indexed account, uint256 amount);
+    event LogWithdrawalBNB(address indexed recipient, uint256 amount);
     event LogWithdrawToken(
         address indexed token,
-        address indexed account,
+        address indexed recipient,
         uint256 amount
     );
-    event LogWithdrawal(address indexed account, uint256 tAmount);
+    event LogWithdrawal(address indexed recipient, uint256 tAmount);
+    event LogTransferByBridge(
+        address indexed from,
+        address indexed to,
+        uint256 tAmount
+    );
 
     modifier lockTheSwap() {
         inSwapAndLiquify = true;
@@ -821,7 +826,7 @@ contract EmpireToken is Context, IERC20, Ownable {
             _reflectFee(rFee, tFee);
 
             // rFee, tFee
-            // `tFee` will miss Transfer event and reflect to all token holders.
+            // `tFee` will miss Transfer event and then with the `tFee`, reflect to all token holders.
             emit Transfer(
                 sender,
                 address(this),
@@ -1002,38 +1007,47 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogUpdateLiquidityWallet(msg.sender, newLiquidityWallet);
     }
 
-    function withdrawBNB(address payable account, uint256 amount)
+    function withdrawBNB(address payable recipient, uint256 amount)
         external
         onlyOwner
     {
         require(amount <= (address(this)).balance, "Incufficient funds");
-        account.transfer(amount);
-        emit LogWithdrawalBNB(account, amount);
+        recipient.transfer(amount);
+        emit LogWithdrawalBNB(recipient, amount);
     }
 
     /**
-     * @notice Should not be withdrawn scam token.
+     * @notice  Should not be withdrawn scam token or this Empire token.
+     *          Use `withdraw` function to withdraw this Empire token.
      */
     function withdrawToken(
         IERC20 token,
-        address account,
+        address recipient,
         uint256 amount
     ) external onlyOwner {
         require(amount <= token.balanceOf(address(this)), "Incufficient funds");
-        require(token.transfer(account, amount), "Transfer Fail");
+        require(token.transfer(recipient, amount), "Transfer Fail");
 
-        emit LogWithdrawToken(address(token), account, amount);
+        emit LogWithdrawToken(address(token), recipient, amount);
     }
 
-    //TODO why need this function? can need? missed transfer event. can use transfer with `swapAndLiquifyEnabled` instead withdraw
-    function withdraw(address account, uint256 tAmount) external onlyOwner {
-        uint256 currentRate = _getRate();
-        uint256 rAmount = tAmount * currentRate;
-        require(rAmount <= _rOwned[address(this)], "Incufficient funds");
-        _rOwned[account] = _rOwned[account] + rAmount;
-        _rOwned[address(this)] = _rOwned[address(this)] - rAmount;
-        if (_isExcluded[account]) _tOwned[account] = _tOwned[account] + tAmount;
-        emit LogWithdrawal(account, tAmount);
+    /**
+     * @notice  The onlyOwner will withdraw this token to `recipient`.
+     */
+    function withdraw(address recipient, uint256 tAmount) external onlyOwner {
+        require(tAmount > 0, "Withdrawal amount must be greater than zero");
+
+        if (_isExcluded[address(this)] && !_isExcluded[recipient]) {
+            _transferFromExcluded(address(this), recipient, tAmount);
+        } else if (!_isExcluded[address(this)] && _isExcluded[recipient]) {
+            _transferToExcluded(address(this), recipient, tAmount);
+        } else if (_isExcluded[address(this)] && _isExcluded[recipient]) {
+            _transferBothExcluded(address(this), recipient, tAmount);
+        } else {
+            _transferStandard(address(this), recipient, tAmount);
+        }
+
+        emit LogWithdrawal(recipient, tAmount);
     }
 
     modifier onlyBridge() {
@@ -1048,14 +1062,24 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogSetBridge(msg.sender, bridge);
     }
 
-    //TODO why need this function? can need. but can update transferFrom and `swapAndLiquifyEnabled`
-    // in this case, maybe solve transferfee issue if have transferFee
-    function lock(
+    function transferByBridge(
         address from,
         address to,
         uint256 tAmount
     ) external onlyBridge {
-        require(from != address(0), "zero address");
+        require(from != address(0), "Zero address");
+        require(tAmount > 0, "Lock amount must be greater than zero");
+
+        if (_isExcluded[from] && !_isExcluded[to]) {
+            _transferFromExcluded(from, to, tAmount);
+        } else if (!_isExcluded[from] && _isExcluded[to]) {
+            _transferToExcluded(from, to, tAmount);
+        } else if (_isExcluded[from] && _isExcluded[to]) {
+            _transferBothExcluded(from, to, tAmount);
+        } else {
+            _transferStandard(from, to, tAmount);
+        }
+
         _approve(
             from,
             _msgSender(),
@@ -1065,12 +1089,7 @@ contract EmpireToken is Context, IERC20, Ownable {
                 "ERC20: transfer amount exceeds allowance"
             )
         );
-        uint256 currentRate = _getRate();
-        uint256 rAmount = tAmount * currentRate;
 
-        _rOwned[from] = _rOwned[from] - rAmount;
-        _rOwned[to] = _rOwned[to] + rAmount;
-
-        emit Transfer(from, to, tAmount);
+        emit LogTransferByBridge(from, to, tAmount);
     }
 }
