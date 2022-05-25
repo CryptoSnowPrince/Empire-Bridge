@@ -103,12 +103,12 @@ contract EmpireToken is Context, IERC20, Ownable {
     IUniswapV2Router02 public uniswapV2Router;
     address public uniswapV2Pair;
 
-    bool inSwapAndLiquify;
+    bool private inSwapAndLiquify;
     bool private shouldTakeFee = false;
     bool public swapAndLiquifyEnabled = true;
     bool public isTradingEnabled;
 
-    uint256 private numTokensSellToAddToLiquidity = 8000 * 10**9;
+    uint256 public numTokensSellToAddToLiquidity = 8000 * 10**9;
 
     event LogSetAutomatedMarketMakerPair(
         address indexed setter,
