@@ -136,6 +136,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     );
     event LogExcludeFromReward(address indexed account);
     event LogIncludeInReward(address indexed account);
+    event LogFallback(address from, uint256 amount);
     event LogReceive(address from, uint256 amount);
     event LogSetEnableTrading(bool enabled);
     event LogSetMarketingWallet(
@@ -422,6 +423,10 @@ contract EmpireToken is Context, IERC20, Ownable {
     //to recieve ETH from uniswapV2Router when swapping
     receive() external payable {
         emit LogReceive(msg.sender, msg.value);
+    }
+
+    fallback() external payable {
+        emit LogFallback(msg.sender, msg.value);
     }
 
     // reflection
@@ -990,6 +995,7 @@ contract EmpireToken is Context, IERC20, Ownable {
 
         emit LogSetRouterAddress(msg.sender, newRouter);
     }
+
     // don't need?
     function setPairAddress(address newPair) external onlyOwner {
         uniswapV2Pair = newPair;
