@@ -165,6 +165,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         address indexed to,
         uint256 tAmount
     );
+    event LogDeliver(address indexed from, uint256 tAmount);
 
     modifier lockTheSwap() {
         inSwapAndLiquify = true;
@@ -361,7 +362,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         _rTotal = _rTotal - rAmount;
         _tFeeTotal = _tFeeTotal + tAmount;
 
-
+        emit LogDeliver(msg.sender, tAmount);
     }
 
     function reflectionFromToken(uint256 tAmount, bool deductTransferFee)
