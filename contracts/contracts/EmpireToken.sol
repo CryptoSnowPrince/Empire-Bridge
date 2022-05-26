@@ -101,7 +101,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     address public teamWallet;
 
     IUniswapV2Router02 public uniswapV2Router;
-    address public uniswapV2Pair;
+    address public uniswapV2Pair; // don't need?
 
     bool private inSwapAndLiquify;
     bool private shouldTakeFee = false;
@@ -187,6 +187,7 @@ contract EmpireToken is Context, IERC20, Ownable {
             // 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
         );
         // Create a uniswap pair for this new token
+        // `uniswapV2Pair` is need?
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
 
@@ -975,7 +976,7 @@ contract EmpireToken is Context, IERC20, Ownable {
 
         emit LogSetRouterAddress(msg.sender, newRouter);
     }
-
+    // don't need?
     function setPairAddress(address newPair) external onlyOwner {
         uniswapV2Pair = newPair;
 
