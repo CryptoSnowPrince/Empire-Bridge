@@ -3,8 +3,6 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IUniswapV2Factory {
@@ -45,11 +43,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
     ) external;
 }
 
-contract EmpireToken is Context, IERC20, Ownable {
-    using Address for address;
-
-    address public bridge;
-
+contract EmpireToken is IERC20, Ownable {
     mapping(address => uint256) private _rOwned;
     mapping(address => uint256) private _tOwned;
     mapping(address => mapping(address => uint256)) private _allowances;
@@ -101,6 +95,8 @@ contract EmpireToken is Context, IERC20, Ownable {
     address public teamWallet;
 
     IUniswapV2Router02 public uniswapV2Router;
+
+    address public bridge;
 
     bool private inSwapAndLiquify;
     bool private shouldTakeFee = false;
@@ -190,8 +186,10 @@ contract EmpireToken is Context, IERC20, Ownable {
             // 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
         );
         // Create a uniswap pair for this new token
-        address pair = IUniswapV2Factory(_uniswapV2Router.factory())
-            .createPair(address(this), _uniswapV2Router.WETH());
+        address pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(
+            address(this),
+            _uniswapV2Router.WETH()
+        );
 
         setAutomatedMarketMakerPair(pair, true);
 
