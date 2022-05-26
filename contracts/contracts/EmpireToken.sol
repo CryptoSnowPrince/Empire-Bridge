@@ -101,7 +101,6 @@ contract EmpireToken is Context, IERC20, Ownable {
     address public teamWallet;
 
     IUniswapV2Router02 public uniswapV2Router;
-    address public uniswapV2Pair; // don't need?
 
     bool private inSwapAndLiquify;
     bool private shouldTakeFee = false;
@@ -148,7 +147,6 @@ contract EmpireToken is Context, IERC20, Ownable {
     event LogSetBuyFees(address indexed setter, BuyFee buyFee);
     event LogSetSellFees(address indexed setter, SellFee sellFee);
     event LogSetRouterAddress(address indexed setter, address router);
-    event LogSetPairAddress(address indexed setter, address pair);
     event LogUpdateGasForProcessing(address indexed setter, uint256 value);
     event LogUpdateLiquidityWallet(
         address indexed setter,
@@ -192,9 +190,10 @@ contract EmpireToken is Context, IERC20, Ownable {
             // 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
         );
         // Create a uniswap pair for this new token
-        // `uniswapV2Pair` is need?
-        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+        address pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
+
+        setAutomatedMarketMakerPair(pair, true);
 
         // set the rest of the contract variables
         uniswapV2Router = _uniswapV2Router;
@@ -220,7 +219,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     }
 
     function setAutomatedMarketMakerPair(address pair, bool enabled)
-        external
+        public
         onlyOwner
     {
         automatedMarketMakerPairs[pair] = enabled;
@@ -994,13 +993,6 @@ contract EmpireToken is Context, IERC20, Ownable {
         uniswapV2Router = IUniswapV2Router02(newRouter);
 
         emit LogSetRouterAddress(msg.sender, newRouter);
-    }
-
-    // don't need?
-    function setPairAddress(address newPair) external onlyOwner {
-        uniswapV2Pair = newPair;
-
-        emit LogSetPairAddress(msg.sender, newPair);
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) external onlyOwner {
