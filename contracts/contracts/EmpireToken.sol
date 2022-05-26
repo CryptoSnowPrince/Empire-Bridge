@@ -136,6 +136,7 @@ contract EmpireToken is Context, IERC20, Ownable {
     );
     event LogExcludeFromReward(address indexed account);
     event LogIncludeInReward(address indexed account);
+    event LogReceive(address from, uint256 amount);
     event LogSetEnableTrading(bool enabled);
     event LogSetMarketingWallet(
         address indexed setter,
@@ -348,6 +349,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         return _tFeeTotal;
     }
 
+    // missing event
     function deliver(uint256 tAmount) external {
         address sender = _msgSender();
         require(
@@ -358,6 +360,8 @@ contract EmpireToken is Context, IERC20, Ownable {
         _rOwned[sender] = _rOwned[sender] - rAmount;
         _rTotal = _rTotal - rAmount;
         _tFeeTotal = _tFeeTotal + tAmount;
+
+
     }
 
     function reflectionFromToken(uint256 tAmount, bool deductTransferFee)
@@ -415,7 +419,9 @@ contract EmpireToken is Context, IERC20, Ownable {
     }
 
     //to recieve ETH from uniswapV2Router when swapping
-    receive() external payable {}
+    receive() external payable {
+        emit LogReceive(msg.sender, msg.value);
+    }
 
     function _reflectFee(uint256 rFee, uint256 tFee) private {
         _rTotal = _rTotal - rFee;
