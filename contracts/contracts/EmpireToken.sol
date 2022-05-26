@@ -201,8 +201,6 @@ contract EmpireToken is Context, IERC20, Ownable {
         _isExcludedFromFee[address(this)] = true;
         _isExcludedFromFee[owner()] = true;
 
-        _isExcludedFromFee[address(uniswapV2Router)] = true;
-
         buyFee.autoLp = 4;
         buyFee.burn = 0;
         buyFee.marketing = 3;
