@@ -134,6 +134,8 @@ contract EmpireToken is Context, IERC20, Ownable {
         address account,
         bool enabled
     );
+    event LogExcludeFromReward(address indexed account);
+    event LogIncludeInReward(address indexed account);
     event LogSetEnableTrading(bool enabled);
     event LogSetMarketingWallet(
         address indexed setter,
@@ -393,6 +395,8 @@ contract EmpireToken is Context, IERC20, Ownable {
         }
         _isExcluded[account] = true;
         _excluded.push(account);
+
+        emit LogExcludeFromReward(account);
     }
 
     function includeInReward(address account) external onlyOwner {
@@ -406,6 +410,8 @@ contract EmpireToken is Context, IERC20, Ownable {
                 break;
             }
         }
+
+        emit LogIncludeInReward(account);
     }
 
     //to recieve ETH from uniswapV2Router when swapping
