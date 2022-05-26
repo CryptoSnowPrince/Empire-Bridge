@@ -350,7 +350,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         return _tFeeTotal;
     }
 
-    // missing event
+    // reflection by action of volunteer
     function deliver(uint256 tAmount) external {
         address sender = _msgSender();
         require(
@@ -424,6 +424,7 @@ contract EmpireToken is Context, IERC20, Ownable {
         emit LogReceive(msg.sender, msg.value);
     }
 
+    // reflection
     function _reflectFee(uint256 rFee, uint256 tFee) private {
         _rTotal = _rTotal - rFee;
         _tFeeTotal = _tFeeTotal + tFee;
