@@ -6,7 +6,11 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 interface IBridgeToken {
-    function transferByBridge(address from, address to, uint256 tAmount) external;
+    function transferByBridge(
+        address from,
+        address to,
+        uint256 tAmount
+    ) external;
 
     function decimals() external pure returns (uint8);
 }
@@ -72,7 +76,11 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
         uint256 fromChainId
     );
 
-    constructor(address _validator, address payable _treasury, address _pool) {
+    constructor(
+        address _validator,
+        address payable _treasury,
+        address _pool
+    ) {
         validator = _validator;
         TREASURY = _treasury;
         POOL = _pool;
@@ -219,24 +227,26 @@ contract Bridge is Ownable, Pausable, ReentrancyGuard {
     }
 
     // Withdraw functions
-    function withdrawETH(address payable recipient) external onlyOwner {
-        require(address(this).balance > 0, "Incufficient funds");
-
-        uint256 amount = (address(this)).balance;
+    function withdrawETH(address payable recipient, uint256 amount)
+        external
+        onlyOwner
+    {
+        require(amount <= (address(this)).balance, "Incufficient funds");
         recipient.transfer(amount);
-
+        
         emit LogWithdrawalETH(recipient, amount);
     }
 
     /**
      * @notice Should not be withdrawn scam token.
      */
-    function withdrawERC20(IERC20 token, address recipient) external onlyOwner {
-        uint256 amount = token.balanceOf(address(this));
-
-        require(amount > 0, "Incufficient funds");
-
-        require(token.transfer(recipient, amount), "WithdrawERC20 Fail");
+    function withdrawERC20(
+        IERC20 token,
+        address recipient,
+        uint256 amount
+    ) external onlyOwner {
+        require(amount <= token.balanceOf(address(this)), "Incufficient funds");
+        require(token.transfer(recipient, amount), "Transfer Fail");
 
         emit LogWithdrawalERC20(address(token), recipient, amount);
     }
