@@ -181,7 +181,6 @@ contract EmpireToken is IERC20, Ownable {
         teamWallet = _teamWallet;
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_router);
-        // Create a uniswap pair for this new token
         address pair = IUniswapV2Factory(_uniswapV2Router.factory()).createPair(
             address(this),
             _uniswapV2Router.WETH()
@@ -189,7 +188,6 @@ contract EmpireToken is IERC20, Ownable {
 
         setAutomatedMarketMakerPair(pair, true);
 
-        // set the rest of the contract variables
         uniswapV2Router = _uniswapV2Router;
 
         _isExcludedFromFee[address(this)] = true;
@@ -342,7 +340,6 @@ contract EmpireToken is IERC20, Ownable {
         return _tFeeTotal;
     }
 
-    // reflection by action of volunteer
     function deliver(uint256 tAmount) external {
         address sender = _msgSender();
         require(
@@ -411,7 +408,6 @@ contract EmpireToken is IERC20, Ownable {
         emit LogIncludeInReward(account);
     }
 
-    //to recieve ETH from uniswapV2Router when swapping
     receive() external payable {
         emit LogReceive(msg.sender, msg.value);
     }
@@ -420,7 +416,6 @@ contract EmpireToken is IERC20, Ownable {
         emit LogFallback(msg.sender, msg.value);
     }
 
-    // reflection
     function _reflectFee(uint256 rFee, uint256 tFee) private {
         _rTotal = _rTotal - rFee;
         _tFeeTotal = _tFeeTotal + tFee;
@@ -657,7 +652,6 @@ contract EmpireToken is IERC20, Ownable {
             swapAndDistribute(contractTokenBalance);
         }
 
-        //transfer amount, it will take tax, Burn, liquidity fee
         _tokenTransfer(from, to, amount);
     }
 
@@ -833,11 +827,8 @@ contract EmpireToken is IERC20, Ownable {
             _takeLiquidity(tLiquidity);
             _takeMarketingAndBurn(tMarketing, tBurn);
             _takeTeam(tTeam);
-            // reflection
             _reflectFee(rFee, tFee);
 
-            // rFee, tFee
-            // `tFee` will miss Transfer event and then with the `tFee`, reflect to all token holders.
             emit Transfer(
                 sender,
                 address(this),
