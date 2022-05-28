@@ -14,7 +14,10 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const _validator = "0x256C9FbE9093E7b9E3C4584aDBC3066D8c6216da";
+  // const _validator = "0x256C9FbE9093E7b9E3C4584aDBC3066D8c6216da";
+  
+  const _validator = "0x3631f25ea6f2368D3A927685acD2C5c43CE05049";
+
   const _treasury = "0x7F77451e9c89058556674C5b82Bd5A4fab601AFC";
   const _pool = "0x7F77451e9c89058556674C5b82Bd5A4fab601AFC";
 
