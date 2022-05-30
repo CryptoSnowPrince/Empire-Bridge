@@ -54,7 +54,6 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         address to,
         uint256 deadline
     ) external whenNotPaused nonReentrant {
-        address recipient = _msgSender();
         require(
             supportedRouters[router] == true,
             "MiniRouter: The Router is not supported"
@@ -86,12 +85,12 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             tokenBAmount,
             0,
             0,
-            recipient,
-            block.timestamp
+            to,
+            deadline
         );
 
         emit LogAddLiquidityTokens(
-            recipient,
+            to,
             tokenB,
             empireAmount,
             tokenBAmount,
