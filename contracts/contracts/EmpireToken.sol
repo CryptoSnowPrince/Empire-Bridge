@@ -208,15 +208,6 @@ contract EmpireToken is IERC20, Ownable {
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
-    function setAutomatedMarketMakerPair(address pair, bool enabled)
-        public
-        onlyOwner
-    {
-        automatedMarketMakerPairs[pair] = enabled;
-
-        emit LogSetAutomatedMarketMakerPair(msg.sender, pair, enabled);
-    }
-
     function name() external pure returns (string memory) {
         return _name;
     }
@@ -970,6 +961,15 @@ contract EmpireToken is IERC20, Ownable {
         sellFee.team = _team;
 
         emit LogSetSellFees(msg.sender, sellFee);
+    }
+
+    function setAutomatedMarketMakerPair(address pair, bool enabled)
+        public
+        onlyOwner
+    {
+        automatedMarketMakerPairs[pair] = enabled;
+
+        emit LogSetAutomatedMarketMakerPair(msg.sender, pair, enabled);
     }
 
     function setRouterAddress(address newRouter) external onlyOwner {
