@@ -3,15 +3,13 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
-contract GooseBumpsMiniRouter is Ownable {
+contract MiniRouter is Ownable {
     
     IERC20 public empire;
     address public EMPIRE_ADDRESS;
@@ -85,7 +83,7 @@ contract GooseBumpsMiniRouter is Ownable {
             0,
             0,
             recipient,
-            block.timestamp + 60
+            block.timestamp
         );
 
         emit LogAddLiquidityETH(recipient, empireAmount, ethAmount, router);
@@ -107,7 +105,7 @@ contract GooseBumpsMiniRouter is Ownable {
             0,
             0,
             recipient,
-            block.timestamp + 60
+            block.timestamp
         );
 
         emit LogAddLiquidityTokens(recipient, tokenB, empireAmount, tokenBAmount, router);
@@ -128,7 +126,7 @@ contract GooseBumpsMiniRouter is Ownable {
             0,
             0,
             recipient,
-            block.timestamp + 60
+            block.timestamp
         );
 
         emit LogRemoveLiquidityTokens(recipient, liquidity, router, tokenB);
@@ -147,7 +145,7 @@ contract GooseBumpsMiniRouter is Ownable {
             0,
             0,
             recipient,
-            block.timestamp + 60
+            block.timestamp
         );
 
         emit LogRemoveLiquidityETH(recipient, liquidity, router);
