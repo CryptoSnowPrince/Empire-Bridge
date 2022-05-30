@@ -51,6 +51,29 @@ contract MiniRouter is Ownable {
 
         emit LogSetRouter(router, enabled);
     }
+    
+    function withdrawETH(address payable recipient, uint256 amount)
+        external
+        onlyOwner
+    {
+        require(amount <= (address(this)).balance, "Incufficient funds");
+        recipient.transfer(amount);
+        emit LogWithdrawalETH(recipient, amount);
+    }
+
+    /**
+     * @notice  Should not be withdrawn scam token.
+     */
+    function withdrawToken(
+        IERC20 token,
+        address recipient,
+        uint256 amount
+    ) external onlyOwner {
+        require(amount <= token.balanceOf(address(this)), "Incufficient funds");
+        require(token.transfer(recipient, amount), "Transfer Fail");
+
+        emit LogWithdrawToken(address(token), recipient, amount);
+    }
 
     // function setPair(address tokenB, address router, address pair) public onlyOwner{
     //     pairAddr[router][tokenB] = pair;
