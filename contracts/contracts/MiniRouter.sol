@@ -53,7 +53,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         address router,
         address to,
         uint256 deadline
-    ) external {
+    ) external whenNotPaused nonReentrant {
         address recipient = _msgSender();
         require(
             supportedRouters[router] == true,
@@ -98,14 +98,14 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             router
         );
     }
-    
+
     function addLiquidityETH(
         uint256 empireAmount,
         uint256 ethAmount,
         address router,
         address to,
         uint256 deadline
-    ) external payable {
+    ) external payable whenNotPaused nonReentrant {
         address recipient = _msgSender();
         require(
             supportedRouters[router] == true,
@@ -137,6 +137,14 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
 
     fallback() external payable {
         emit LogFallback(msg.sender, msg.value);
+    }
+
+    function setPause() external onlyOwner {
+        _pause();
+    }
+
+    function setUnpause() external onlyOwner {
+        _unpause();
     }
 
     function setEmpire(address empire_) external onlyOwner {
