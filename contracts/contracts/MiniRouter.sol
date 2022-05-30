@@ -35,20 +35,22 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         address indexed from,
         address indexed router,
         address indexed tokenB,
-        uint256 amountA,
-        uint256 amountB,
+        uint256 amountEmpire,
+        uint256 amountTokenB,
+        uint256 liquidity,
+        address to
+    );
+    event LogAddLiquidityETH(
+        address indexed from,
+        address indexed router,
+        uint256 amountEmpire,
+        uint256 amountETH,
         uint256 liquidity,
         address to
     );
 
     // event LogSetPair(address pair);
     // event LogDeletePair(address pair);
-    // event LogAddLiquidityETH(
-    //     address recipient,
-    //     uint256 amountEmpireDesired,
-    //     uint256 ethAmount,
-    //     address router
-    // );
 
     // event LogRemoveLiquidityETH(address recipient, uint256 liquidity, address router);
     // event LogRemoveLiquidityTokens(address recipient, uint256 liquidity, address router, address tokenB);
@@ -80,7 +82,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             empire.transferFrom(msg.sender, address(this), amountEmpireDesired),
             "MiniRouter: TransferFrom failed"
         );
-        amountEmpire = amountEmpire - empire.balanceOf(address(this));
+        amountEmpire = empire.balanceOf(address(this)) - amountEmpire;
 
         require(
             empire.approve(router, amountEmpire),
@@ -96,7 +98,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             ),
             "MiniRouter: TransferFrom failed"
         );
-        amountTokenB = amountTokenB - IERC20(tokenB).balanceOf(address(this));
+        amountTokenB = IERC20(tokenB).balanceOf(address(this)) - amountTokenB;
 
         require(
             IERC20(tokenB).approve(router, amountTokenB),
@@ -181,11 +183,11 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             deadline
         );
 
+        require(amountEmpire >= amountA, "Empire: Insufficient funds");
+        require(amountTokenB >= amountB, "TokenB: Insufficient funds");
+
         uint256 amountEmpireRefund = amountEmpire - amountA;
         uint256 amountTokenBRefund = amountTokenB - amountB;
-
-        require(amountEmpireRefund >= 0, "Empire: Insufficient funds");
-        require(amountTokenBRefund >= 0, "TokenB: Insufficient funds");
 
         if (amountEmpireRefund > 0) {
             require(
@@ -212,37 +214,118 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         );
     }
 
-    // function addLiquidityETH(
-    //     uint256 amountEmpireDesired,
-    //     uint256 ethAmount,
-    //     address router,
-    //     address to,
-    //     uint256 deadline
-    // ) external payable whenNotPaused nonReentrant {
-    //     address recipient = _msgSender();
-    //     require(
-    //         supportedRouters[router] == true,
-    //         "MiniRouter: The Router is not supported"
-    //     );
-    //     require(
-    //         empire.approve(router, amountEmpireDesired),
-    //         "MiniRouter: Approve failed"
-    //     );
-    //     require(
-    //         empire.transferFrom(msg.sender, address(this), amountEmpireDesired),
-    //         "MiniRouter: TransferFrom failed"
-    //     );
-    //     IUniswapV2Router02(router).addLiquidityETH{value: ethAmount}(
-    //         address(empire),
-    //         amountEmpireDesired,
-    //         0,
-    //         0,
-    //         recipient,
-    //         block.timestamp
-    //     );
+    function beforeAddLiquidityETH(address router, uint256 amountEmpireDesired)
+        private
+        returns (uint256 amountEmpire)
+    {
+        require(
+            supportedRouters[router] == true,
+            "MiniRouter: The Router is not supported"
+        );
 
-    //     emit LogAddLiquidityETH(recipient, amountEmpireDesired, ethAmount, router);
-    // }
+        amountEmpire = empire.balanceOf(address(this));
+        require(
+            empire.transferFrom(msg.sender, address(this), amountEmpireDesired),
+            "MiniRouter: TransferFrom failed"
+        );
+        amountEmpire = empire.balanceOf(address(this)) - amountEmpire;
+
+        require(
+            empire.approve(router, amountEmpire),
+            "MiniRouter: Approve failed"
+        );
+    }
+
+    function _addLiquidityETH(
+        address router,
+        uint256 amountEmpire,
+        uint256 ethAmount,
+        address to,
+        uint256 deadline
+    )
+        private
+        returns (
+            uint256 amountToken,
+            uint256 amountETH,
+            uint256 liquidity
+        )
+    {
+        uint256 amountEmpireAdded = empire.balanceOf(address(this));
+
+        (amountToken, amountETH, liquidity) = IUniswapV2Router02(router)
+            .addLiquidityETH{value: ethAmount}(
+            address(empire),
+            amountEmpire,
+            0,
+            0,
+            to,
+            deadline
+        );
+
+        amountEmpireAdded = amountEmpireAdded - empire.balanceOf(address(this));
+
+        require(
+            amountEmpireAdded == amountToken,
+            "MiniRouter: AddLiquidity failed"
+        );
+    }
+
+    function addLiquidityETH(
+        address router,
+        uint256 amountEmpireDesired,
+        address to,
+        uint256 deadline
+    )
+        external
+        payable
+        whenNotPaused
+        nonReentrant
+        returns (
+            uint256 amountToken,
+            uint256 amountETH,
+            uint256 liquidity
+        )
+    {
+        uint256 amountEmpire = beforeAddLiquidityETH(
+            router,
+            amountEmpireDesired
+        );
+
+        (amountToken, amountETH, liquidity) = _addLiquidityETH(
+            router,
+            amountEmpire,
+            msg.value,
+            to,
+            deadline
+        );
+
+        require(amountEmpire >= amountToken, "Empire: Insufficient funds");
+        require(msg.value >= amountETH, "ETH: Insufficient funds");
+
+        uint256 amountEmpireRefund = amountEmpire - amountToken;
+        uint256 amountETHRefund = msg.value - amountETH;
+
+        if (amountEmpireRefund > 0) {
+            require(
+                empire.transfer(msg.sender, amountEmpireRefund),
+                "Transfer fail"
+            );
+        }
+
+        if (amountETHRefund > 0) {
+            (bool success, ) = msg.sender.call{value: amountETHRefund}(new bytes(0));
+            require(success, "ETH Refund fail");
+        }
+
+        emit LogAddLiquidityETH(
+            msg.sender,
+            router,
+            amountEmpire,
+            amountETH,
+            liquidity,
+            to
+        );
+    }
 
     receive() external payable {
         emit LogReceive(msg.sender, msg.value);
