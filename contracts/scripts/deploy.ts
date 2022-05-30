@@ -20,10 +20,10 @@ async function main() {
   
   // Ethereum Mainnet
   // Ropsten, Rinkeby
-  const _router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+  // const _router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
   
   // Bsc Testnet
-  // const _router = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
+  const _router = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
   
   const _marketingWallet = "0x885Aec56Bd62ccafc8e55CF19997aCddaa2fe73b";
   const _teamWallet = "0x2b538414570e2134B6A9fC6d504c3b38cA016Cf3";
