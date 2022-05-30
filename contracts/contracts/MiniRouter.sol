@@ -59,23 +59,12 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         updateSupportedRouters(router, true);
     }
 
-    function addLiquidityTokens(
+    function beforeAddLiquidityTokens(
         address router,
         address tokenB,
         uint256 amountEmpireDesired,
-        uint256 amountTokenBDesired,
-        address to,
-        uint256 deadline
-    )
-        external
-        whenNotPaused
-        nonReentrant
-        returns (
-            uint256 amountA,
-            uint256 amountB,
-            uint256 liquidity
-        )
-    {
+        uint256 amountTokenBDesired
+    ) private returns (uint256 amountEmpire, uint256 amountTokenB) {
         require(
             supportedRouters[router] == true,
             "MiniRouter: The Router is not supported"
@@ -86,7 +75,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: The TokenB is not supported"
         );
 
-        uint256 amountEmpire = empire.balanceOf(address(this));
+        amountEmpire = empire.balanceOf(address(this));
         require(
             empire.transferFrom(msg.sender, address(this), amountEmpireDesired),
             "MiniRouter: TransferFrom failed"
@@ -98,7 +87,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: Approve failed"
         );
 
-        uint256 amountTokenB = IERC20(tokenB).balanceOf(address(this));
+        amountTokenB = IERC20(tokenB).balanceOf(address(this));
         require(
             IERC20(tokenB).transferFrom(
                 msg.sender,
@@ -113,7 +102,23 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             IERC20(tokenB).approve(router, amountTokenB),
             "MiniRouter: Approve failed"
         );
+    }
 
+    function _addLiquidityTokens(
+        address router,
+        address tokenB,
+        uint256 amountEmpire,
+        uint256 amountTokenB,
+        address to,
+        uint256 deadline
+    )
+        private
+        returns (
+            uint256 amountA,
+            uint256 amountB,
+            uint256 liquidity
+        )
+    {
         uint256 amountEmpireAdded = empire.balanceOf(address(this));
         uint256 amountTokenBAdded = IERC20(tokenB).balanceOf(address(this));
 
@@ -133,11 +138,51 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             amountTokenBAdded -
             IERC20(tokenB).balanceOf(address(this));
 
-        require(amountEmpireAdded == amountA, "MiniRouter: AddLiquidity failed");
-        require(amountTokenBAdded == amountB, "MiniRouter: AddLiquidity failed");
+        require(
+            amountEmpireAdded == amountA,
+            "MiniRouter: AddLiquidity failed"
+        );
+        require(
+            amountTokenBAdded == amountB,
+            "MiniRouter: AddLiquidity failed"
+        );
+    }
 
-        uint256 amountEmpireRefund = amountEmpire - amountEmpireAdded;
-        uint256 amountTokenBRefund = amountTokenB - amountTokenBAdded;
+    function addLiquidityTokens(
+        address router,
+        address tokenB,
+        uint256 amountEmpireDesired,
+        uint256 amountTokenBDesired,
+        address to,
+        uint256 deadline
+    )
+        external
+        whenNotPaused
+        nonReentrant
+        returns (
+            uint256 amountA,
+            uint256 amountB,
+            uint256 liquidity
+        )
+    {
+        (uint256 amountEmpire, uint256 amountTokenB) = beforeAddLiquidityTokens(
+            router,
+            tokenB,
+            amountEmpireDesired,
+            amountTokenBDesired
+        );
+
+        (amountA, amountB, liquidity) = _addLiquidityTokens(
+            router,
+            tokenB,
+            amountEmpire,
+            amountTokenB,
+            to,
+            deadline
+        );
+
+        uint256 amountEmpireRefund = amountEmpire - amountA;
+        uint256 amountTokenBRefund = amountTokenB - amountB;
 
         require(amountEmpireRefund >= 0, "Empire: Insufficient funds");
         require(amountTokenBRefund >= 0, "TokenB: Insufficient funds");
