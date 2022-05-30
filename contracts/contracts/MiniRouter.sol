@@ -12,73 +12,63 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 contract MiniRouter is Ownable {
     
     IERC20 public empire;
-    address public EMPIRE_ADDRESS;
 
-
-    mapping(uint256 => address) public idToRouter;
-    mapping(address => bool) public supportsRouter;
+    mapping(address => bool) public supportedRouters;
     ///@notice router addr + second token addr = pair addr
     mapping(address => mapping(address => address)) public pairAddr;
     mapping(address => bool) public pairExists;
 
-    event LogSetRouter(address router);
-    event LogSetPair(address pair);
-    event LogDeleteRouter(address router);
-    event LogDeletePair(address pair);
-    event LogUpdateEmpire(IERC20 empire);
-    event LogUpdateEmpireAddress(address empire);
+    event LogSetRouter(address router, bool enabled);
+    event LogSetEmpire(address empire);
+    // event LogSetPair(address pair);
+    // event LogDeletePair(address pair);
     event LogAddLiquidityETH(address recipient, uint256 empireAmount, uint256 ethAmount, address router);
     event LogAddLiquidityTokens(address recipient, address tokenB, uint256 empireAmount, uint256 tokenBAmount, address router);
-    event LogRemoveLiquidityETH(address recipient, uint256 liquidity, address router);
-    event LogRemoveLiquidityTokens(address recipient, uint256 liquidity, address router, address tokenB);
+    // event LogRemoveLiquidityETH(address recipient, uint256 liquidity, address router);
+    // event LogRemoveLiquidityTokens(address recipient, uint256 liquidity, address router, address tokenB);
     
-    constructor(address _empire, address router, uint256 routerId, address pair){
-        EMPIRE_ADDRESS = _empire;
-        empire = IERC20(_empire);
+    constructor(address empire_, address router){
+        empire = IERC20(empire_);
 
-        setRouter(router, routerId);
-        address tokenB = IUniswapV2Router02(router).WETH();
-        setPair(tokenB, router, pair);   
+        setRouter(router, true);
     }
 
-    function updateEmpireAddress(address _empire) external onlyOwner{
-        EMPIRE_ADDRESS = _empire;
-        emit LogUpdateEmpireAddress(_empire);
+    receive() external payable {
+        emit LogReceive(msg.sender, msg.value);
     }
 
-    function updateEmpire(IERC20 _empire) external onlyOwner{
-        empire = _empire;
-        emit LogUpdateEmpire(_empire);
+    fallback() external payable {
+        emit LogFallback(msg.sender, msg.value);
     }
 
-    function setRouter(address router, uint256 routerId) public onlyOwner{
-        idToRouter[routerId] = router;
-        supportsRouter[router] == true;
+    function setEmpire(address empire_) external onlyOwner{
+        empire = IERC20(empire_);
+        emit LogSetEmpire(empire_);
     }
 
-    function setPair(address tokenB, address router, address pair) public onlyOwner{
-        pairAddr[router][tokenB] = pair;
-        pairExists[pair] == true;
+    function setRouter(address router, bool enabled) public onlyOwner{
+        supportedRouters[router] == enabled;
+
+        emit LogSetRouter(router, enabled);
     }
 
-    function deleteRouter(address router) external onlyOwner{
-        supportsRouter[router] == false;
-        emit LogDeleteRouter(router);
-    }
+    // function setPair(address tokenB, address router, address pair) public onlyOwner{
+    //     pairAddr[router][tokenB] = pair;
+    //     pairExists[pair] == true;
+    // }
 
-    function deletePair(address pair) external onlyOwner{
-        pairExists[pair] == false;
-        emit LogDeletePair(pair);
-    }
+    // function deletePair(address pair) external onlyOwner{
+    //     pairExists[pair] == false;
+    //     emit LogDeletePair(pair);
+    // }
 
-    function addLiquidityETH(uint256 empireAmount, uint256 ethAmount, uint256 routerId) external payable{
-        address router = idToRouter[routerId];
+    function addLiquidityETH(uint256 empireAmount, uint256 ethAmount, address router) external payable{
         address recipient = _msgSender();
-        require(supportsRouter[router] == true, "GooseBumpsMiniRouter: The Router is not supported");
-        require(empire.approve(router, empireAmount), "GooseBumpsMiniRouter: Approve failed");
-        require(empire.transferFrom(msg.sender, address(this), empireAmount), "GooseBumpsMiniRouter: TransferFrom failed");
+        require(supportedRouters[router] == true, "MiniRouter: The Router is not supported");
+        require(empire.approve(router, empireAmount), "MiniRouter: Approve failed");
+        require(empire.transferFrom(msg.sender, address(this), empireAmount), "MiniRouter: TransferFrom failed");
         IUniswapV2Router02(router).addLiquidityETH{value: ethAmount}(
-            EMPIRE_ADDRESS,
+            address(empire),
             empireAmount,
             0,
             0,
@@ -89,16 +79,15 @@ contract MiniRouter is Ownable {
         emit LogAddLiquidityETH(recipient, empireAmount, ethAmount, router);
     }
 
-    function addLiquidityTokens(address tokenB, uint256 empireAmount, uint256 tokenBAmount, uint256 routerId) external {
-        address router = idToRouter[routerId];
+    function addLiquidityTokens(address tokenB, uint256 empireAmount, uint256 tokenBAmount, address router) external {
         address recipient = _msgSender();
-        require(supportsRouter[router] == true, "GooseBumpsMiniRouter: The Router is not supported");
-        require(empire.transferFrom(msg.sender, address(this), empireAmount), "GooseBumpsMiniRouter: TransferFrom failed");
-        require(empire.approve(router, empireAmount), "GooseBumpsMiniRouter: Approve failed");
-        require(IERC20(tokenB).transferFrom(msg.sender, address(this), tokenBAmount), "GooseBumpsMiniRouter: TransferFrom failed");
-        require(IERC20(tokenB).approve(router , tokenBAmount), "GooseBumpsMiniRouter: Approve failed");
+        require(supportedRouters[router] == true, "MiniRouter: The Router is not supported");
+        require(empire.transferFrom(msg.sender, address(this), empireAmount), "MiniRouter: TransferFrom failed");
+        require(empire.approve(router, empireAmount), "MiniRouter: Approve failed");
+        require(IERC20(tokenB).transferFrom(msg.sender, address(this), tokenBAmount), "MiniRouter: TransferFrom failed");
+        require(IERC20(tokenB).approve(router , tokenBAmount), "MiniRouter: Approve failed");
         IUniswapV2Router02(router).addLiquidity(
-            EMPIRE_ADDRESS,
+            address(empire),
             tokenB,
             empireAmount,
             tokenBAmount,
@@ -111,43 +100,41 @@ contract MiniRouter is Ownable {
         emit LogAddLiquidityTokens(recipient, tokenB, empireAmount, tokenBAmount, router);
     }
 
-    function removeLiquidityTokens(address tokenB, uint256 liquidity, uint256 routerId) external {
-        address router = idToRouter[routerId];
-        address recipient = _msgSender();
-        address pair = pairAddr[router][tokenB];
-        require(pairExists[pair] == true, "GooseBumpsMiniRouter: Pair does not exist");
-        require(supportsRouter[router] == true, "GooseBumpsMiniRouter: The Router is not supported");
-        require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "GooseBumpsMiniRouter: TransferFrom failed");
-        require(IUniswapV2Pair(pair).approve(router, liquidity), "GooseBumpsMiniRouter: Approve failed");
-        IUniswapV2Router02(router).removeLiquidity(
-            EMPIRE_ADDRESS,
-            tokenB,
-            liquidity,
-            0,
-            0,
-            recipient,
-            block.timestamp
-        );
+    // function removeLiquidityTokens(address tokenB, uint256 liquidity, address router) external {
+    //     address recipient = _msgSender();
+    //     address pair = pairAddr[router][tokenB];
+    //     require(pairExists[pair] == true, "MiniRouter: Pair does not exist");
+    //     require(supportedRouters[router] == true, "MiniRouter: The Router is not supported");
+    //     require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "MiniRouter: TransferFrom failed");
+    //     require(IUniswapV2Pair(pair).approve(router, liquidity), "MiniRouter: Approve failed");
+    //     IUniswapV2Router02(router).removeLiquidity(
+    //         address(empire),
+    //         tokenB,
+    //         liquidity,
+    //         0,
+    //         0,
+    //         recipient,
+    //         block.timestamp
+    //     );
 
-        emit LogRemoveLiquidityTokens(recipient, liquidity, router, tokenB);
-    }
+    //     emit LogRemoveLiquidityTokens(recipient, liquidity, router, tokenB);
+    // }
 
-    function removeLiquidityETH(uint256 liquidity, uint256 routerId) external {
-        address router = idToRouter[routerId];
-        address recipient = _msgSender();
-        address pair = pairAddr[router][IUniswapV2Router02(router).WETH()];
-        require(pairExists[pair] == true, "GooseBumpsMiniRouter: Pair does not exist");
-        require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "GooseBumpsMiniRouter: TransferFrom failed");
-        require(IUniswapV2Pair(pair).approve(router, liquidity), "GooseBumpsMiniRouter: Approve failed");
-        IUniswapV2Router02(router).removeLiquidityETH(
-            EMPIRE_ADDRESS,
-            liquidity,
-            0,
-            0,
-            recipient,
-            block.timestamp
-        );
+    // function removeLiquidityETH(uint256 liquidity, address router) external {
+    //     address recipient = _msgSender();
+    //     address pair = pairAddr[router][IUniswapV2Router02(router).WETH()];
+    //     require(pairExists[pair] == true, "MiniRouter: Pair does not exist");
+    //     require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "MiniRouter: TransferFrom failed");
+    //     require(IUniswapV2Pair(pair).approve(router, liquidity), "MiniRouter: Approve failed");
+    //     IUniswapV2Router02(router).removeLiquidityETH(
+    //         address(empire),
+    //         liquidity,
+    //         0,
+    //         0,
+    //         recipient,
+    //         block.timestamp
+    //     );
 
-        emit LogRemoveLiquidityETH(recipient, liquidity, router);
-    }
+    //     emit LogRemoveLiquidityETH(recipient, liquidity, router);
+    // }
 }
