@@ -70,12 +70,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         updateSupportedRouters(router, true);
     }
 
-    function beforeAddLiquidityTokens(
-        address router,
-        address tokenB,
-        uint256 amountEmpireDesired,
-        uint256 amountTokenBDesired
-    ) private {
+    modifier ensure(address router) {
         require(
             IEmpire(empire).isExcludedFromFee(address(this)) == true,
             "MiniRouter: The Router must be excluded from fee"
@@ -86,6 +81,15 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: The Router is not supported"
         );
 
+        _;
+    }
+
+    function beforeAddLiquidityTokens(
+        address router,
+        address tokenB,
+        uint256 amountEmpireDesired,
+        uint256 amountTokenBDesired
+    ) private ensure(router) {
         require(
             supportedTokens[tokenB] == true,
             "MiniRouter: The TokenB is not supported"
