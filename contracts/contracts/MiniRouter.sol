@@ -83,6 +83,9 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: TransferFrom failed"
         );
         amountEmpire = empire.balanceOf(address(this)) - amountEmpire;
+        amountEmpire = (amountEmpire > amountEmpireDesired)
+            ? amountEmpireDesired
+            : amountEmpire;
 
         require(
             empire.approve(router, amountEmpire),
@@ -99,6 +102,9 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: TransferFrom failed"
         );
         amountTokenB = IERC20(tokenB).balanceOf(address(this)) - amountTokenB;
+        amountTokenB = (amountTokenB > amountTokenBDesired)
+            ? amountTokenBDesired
+            : amountTokenB;
 
         require(
             IERC20(tokenB).approve(router, amountTokenB),
@@ -313,7 +319,9 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         }
 
         if (amountETHRefund > 0) {
-            (bool success, ) = msg.sender.call{value: amountETHRefund}(new bytes(0));
+            (bool success, ) = msg.sender.call{value: amountETHRefund}(
+                new bytes(0)
+            );
             require(success, "ETH Refund fail");
         }
 
