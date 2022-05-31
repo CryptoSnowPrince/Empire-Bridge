@@ -11,8 +11,12 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
+interface IEmpire {
+    function isExcludedFromFee(address account) external view returns (bool);
+}
+
 contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
-    IERC20 public empire;
+    address public empire;
 
     mapping(address => bool) public supportedRouters;
     mapping(address => bool) public supportedTokens;
@@ -56,7 +60,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
     // event LogRemoveLiquidityTokens(address recipient, uint256 liquidity, address router, address tokenB);
 
     constructor(address empire_, address router) {
-        empire = IERC20(empire_);
+        setEmpire(empire_);
 
         updateSupportedRouters(router, true);
     }
@@ -68,6 +72,11 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         uint256 amountTokenBDesired
     ) private returns (uint256 amountEmpire, uint256 amountTokenB) {
         require(
+            IEmpire(empire).isExcludedFromFee(address(this)) == true,
+            "MiniRouter: The Router must be excluded from fee"
+        );
+
+        require(
             supportedRouters[router] == true,
             "MiniRouter: The Router is not supported"
         );
@@ -77,18 +86,13 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: The TokenB is not supported"
         );
 
-        amountEmpire = empire.balanceOf(address(this));
         require(
-            empire.transferFrom(msg.sender, address(this), amountEmpireDesired),
+            IERC20(empire).transferFrom(msg.sender, address(this), amountEmpireDesired),
             "MiniRouter: TransferFrom failed"
         );
-        amountEmpire = empire.balanceOf(address(this)) - amountEmpire;
-        amountEmpire = (amountEmpire > amountEmpireDesired)
-            ? amountEmpireDesired
-            : amountEmpire;
 
         require(
-            empire.approve(router, amountEmpire),
+            IERC20(empire).approve(router, amountEmpireDesired),
             "MiniRouter: Approve failed"
         );
 
@@ -127,11 +131,11 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             uint256 liquidity
         )
     {
-        uint256 amountEmpireAdded = empire.balanceOf(address(this));
+        uint256 amountEmpireAdded = IERC20(empire).balanceOf(address(this));
         uint256 amountTokenBAdded = IERC20(tokenB).balanceOf(address(this));
 
         (amountA, amountB, liquidity) = IUniswapV2Router02(router).addLiquidity(
-            address(empire),
+            empire,
             tokenB,
             amountEmpire,
             amountTokenB,
@@ -141,7 +145,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             deadline
         );
 
-        amountEmpireAdded = amountEmpireAdded - empire.balanceOf(address(this));
+        amountEmpireAdded = amountEmpireAdded - IERC20(empire).balanceOf(address(this));
         amountTokenBAdded =
             amountTokenBAdded -
             IERC20(tokenB).balanceOf(address(this));
@@ -197,7 +201,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
 
         if (amountEmpireRefund > 0) {
             require(
-                empire.transfer(msg.sender, amountEmpireRefund),
+                IERC20(empire).transfer(msg.sender, amountEmpireRefund),
                 "Transfer fail"
             );
         }
@@ -229,15 +233,15 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: The Router is not supported"
         );
 
-        amountEmpire = empire.balanceOf(address(this));
+        amountEmpire = IERC20(empire).balanceOf(address(this));
         require(
-            empire.transferFrom(msg.sender, address(this), amountEmpireDesired),
+            IERC20(empire).transferFrom(msg.sender, address(this), amountEmpireDesired),
             "MiniRouter: TransferFrom failed"
         );
-        amountEmpire = empire.balanceOf(address(this)) - amountEmpire;
+        amountEmpire = IERC20(empire).balanceOf(address(this)) - amountEmpire;
 
         require(
-            empire.approve(router, amountEmpire),
+            IERC20(empire).approve(router, amountEmpire),
             "MiniRouter: Approve failed"
         );
     }
@@ -256,11 +260,11 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             uint256 liquidity
         )
     {
-        uint256 amountEmpireAdded = empire.balanceOf(address(this));
+        uint256 amountEmpireAdded = IERC20(empire).balanceOf(address(this));
 
         (amountToken, amountETH, liquidity) = IUniswapV2Router02(router)
             .addLiquidityETH{value: ethAmount}(
-            address(empire),
+            empire,
             amountEmpire,
             0,
             0,
@@ -268,7 +272,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             deadline
         );
 
-        amountEmpireAdded = amountEmpireAdded - empire.balanceOf(address(this));
+        amountEmpireAdded = amountEmpireAdded - IERC20(empire).balanceOf(address(this));
 
         require(
             amountEmpireAdded == amountToken,
@@ -313,7 +317,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
 
         if (amountEmpireRefund > 0) {
             require(
-                empire.transfer(msg.sender, amountEmpireRefund),
+                IERC20(empire).transfer(msg.sender, amountEmpireRefund),
                 "Transfer fail"
             );
         }
@@ -351,8 +355,8 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         _unpause();
     }
 
-    function setEmpire(address empire_) external onlyOwner {
-        empire = IERC20(empire_);
+    function setEmpire(address empire_) public onlyOwner {
+        empire = empire_;
         emit LogSetEmpire(empire_);
     }
 
@@ -415,7 +419,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
     //     require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "MiniRouter: TransferFrom failed");
     //     require(IUniswapV2Pair(pair).approve(router, liquidity), "MiniRouter: Approve failed");
     //     IUniswapV2Router02(router).removeLiquidity(
-    //         address(empire),
+    //         empire,
     //         tokenB,
     //         liquidity,
     //         0,
@@ -434,7 +438,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
     //     require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "MiniRouter: TransferFrom failed");
     //     require(IUniswapV2Pair(pair).approve(router, liquidity), "MiniRouter: Approve failed");
     //     IUniswapV2Router02(router).removeLiquidityETH(
-    //         address(empire),
+    //         empire,
     //         liquidity,
     //         0,
     //         0,
