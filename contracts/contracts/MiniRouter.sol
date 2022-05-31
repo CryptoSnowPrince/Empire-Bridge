@@ -145,10 +145,13 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         address to
     );
 
-    constructor(address empire_, address router) {
+    constructor(address empire_, address router_, address weth_, address busd_) {
         setEmpire(empire_);
 
-        updateSupportedRouters(router, true);
+        updateSupportedRouters(router_, true);
+
+        updateSupportedTokens(weth_, true);
+        updateSupportedTokens(busd_, true);
     }
 
     function ensure(address router) private view {
