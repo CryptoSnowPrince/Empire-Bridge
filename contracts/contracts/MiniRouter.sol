@@ -25,10 +25,6 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
     ///@notice The only owner can add or remove new token, but before add, owner must check token contract.
     mapping(address => bool) public supportedTokens;
 
-    ///@notice router addr + second token addr = pair addr
-    mapping(address => mapping(address => address)) public pairAddr;
-    mapping(address => bool) public pairExists;
-
     event LogUpdateSupportedRouters(address router, bool enabled);
     event LogUpdateSupportedTokens(address token, bool enabled);
     event LogSetEmpire(address empire);
@@ -62,15 +58,18 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         address indexed router,
         address indexed tokenB,
         uint256 liquidity,
-        uint256 amountA,
-        uint256 amountB,
+        uint256 amountEmpire,
+        uint256 amountTokenB,
         address to
     );
-
-    // event LogSetPair(address pair);
-    // event LogDeletePair(address pair);
-
-    // event LogRemoveLiquidityETH(address recipient, uint256 liquidity, address router);
+    event LogRemoveLiquidityETH(
+        address indexed from,
+        address indexed router,
+        uint256 liquidity,
+        uint256 amountEmpire,
+        uint256 amountETH,
+        address to
+    );
 
     constructor(address empire_, address router) {
         setEmpire(empire_);
@@ -312,6 +311,35 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         );
     }
 
+    function removeLiquidityETH(
+        address router,
+        uint256 liquidity,
+        address to,
+        uint256 deadline
+    )
+        external
+        whenNotPaused
+        nonReentrant
+        ensureRemoveLiquidity(
+            router,
+            IUniswapV2Router02(router).WETH(),
+            liquidity
+        )
+        returns (uint256 amountToken, uint256 amountETH)
+    {
+        (amountToken, amountETH) = IUniswapV2Router02(router)
+            .removeLiquidityETH(empire, liquidity, 0, 0, to, deadline);
+
+        emit LogRemoveLiquidityETH(
+            msg.sender,
+            router,
+            liquidity,
+            amountToken,
+            amountETH,
+            to
+        );
+    }
+
     receive() external payable {
         emit LogReceive(msg.sender, msg.value);
     }
@@ -373,52 +401,4 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
 
         emit LogWithdrawToken(address(token), recipient, amount);
     }
-
-    // function setPair(address tokenB, address router, address pair) public onlyOwner{
-    //     pairAddr[router][tokenB] = pair;
-    //     pairExists[pair] == true;
-    // }
-
-    // function deletePair(address pair) external onlyOwner{
-    //     pairExists[pair] == false;
-    //     emit LogDeletePair(pair);
-    // }
-
-    // function removeLiquidityTokens(address tokenB, uint256 liquidity, address router) external {
-    //     address recipient = _msgSender();
-    //     address pair = pairAddr[router][tokenB];
-    //     require(pairExists[pair] == true, "MiniRouter: Pair does not exist");
-    //     require(supportedRouters[router] == true, "MiniRouter: The Router is not supported");
-    //     require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "MiniRouter: TransferFrom failed");
-    //     require(IUniswapV2Pair(pair).approve(router, liquidity), "MiniRouter: Approve failed");
-    //     IUniswapV2Router02(router).removeLiquidity(
-    //         empire,
-    //         tokenB,
-    //         liquidity,
-    //         0,
-    //         0,
-    //         recipient,
-    //         block.timestamp
-    //     );
-
-    //     emit LogRemoveLiquidityTokens(recipient, liquidity, router, tokenB);
-    // }
-
-    // function removeLiquidityETH(uint256 liquidity, address router) external {
-    //     address recipient = _msgSender();
-    //     address pair = pairAddr[router][IUniswapV2Router02(router).WETH()];
-    //     require(pairExists[pair] == true, "MiniRouter: Pair does not exist");
-    //     require(IUniswapV2Pair(pair).transferFrom(msg.sender, address(this), liquidity), "MiniRouter: TransferFrom failed");
-    //     require(IUniswapV2Pair(pair).approve(router, liquidity), "MiniRouter: Approve failed");
-    //     IUniswapV2Router02(router).removeLiquidityETH(
-    //         empire,
-    //         liquidity,
-    //         0,
-    //         0,
-    //         recipient,
-    //         block.timestamp
-    //     );
-
-    //     emit LogRemoveLiquidityETH(recipient, liquidity, router);
-    // }
 }
