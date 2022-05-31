@@ -70,7 +70,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         updateSupportedRouters(router, true);
     }
 
-    modifier ensure(address router) {
+    modifier ensure(address router, uint256 amountEmpireDesired) {
         require(
             IEmpire(empire).isExcludedFromFee(address(this)) == true,
             "MiniRouter: The Router must be excluded from fee"
@@ -79,20 +79,6 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         require(
             supportedRouters[router] == true,
             "MiniRouter: The Router is not supported"
-        );
-
-        _;
-    }
-
-    function beforeAddLiquidityTokens(
-        address router,
-        address tokenB,
-        uint256 amountEmpireDesired,
-        uint256 amountTokenBDesired
-    ) private ensure(router) {
-        require(
-            supportedTokens[tokenB] == true,
-            "MiniRouter: The TokenB is not supported"
         );
 
         require(
@@ -109,6 +95,19 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: Approve failed"
         );
 
+        _;
+    }
+
+    function beforeAddLiquidityTokens(
+        address router,
+        address tokenB,
+        uint256 amountTokenBDesired
+    ) private {
+        require(
+            supportedTokens[tokenB] == true,
+            "MiniRouter: The TokenB is not supported"
+        );
+
         require(
             IERC20(tokenB).transferFrom(
                 msg.sender,
@@ -117,7 +116,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             ),
             "MiniRouter: TransferFrom failed"
         );
-        
+
         require(
             IERC20(tokenB).approve(router, amountTokenBDesired),
             "MiniRouter: Approve failed"
@@ -135,6 +134,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         external
         whenNotPaused
         nonReentrant
+        ensure(router, amountEmpireDesired)
         returns (
             uint256 amountA,
             uint256 amountB,
@@ -144,7 +144,6 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         beforeAddLiquidityTokens(
             router,
             tokenB,
-            amountEmpireDesired,
             amountTokenBDesired
         );
 
@@ -187,68 +186,6 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         );
     }
 
-    function beforeAddLiquidityETH(address router, uint256 amountEmpireDesired)
-        private
-        returns (uint256 amountEmpire)
-    {
-        require(
-            supportedRouters[router] == true,
-            "MiniRouter: The Router is not supported"
-        );
-
-        amountEmpire = IERC20(empire).balanceOf(address(this));
-        require(
-            IERC20(empire).transferFrom(
-                msg.sender,
-                address(this),
-                amountEmpireDesired
-            ),
-            "MiniRouter: TransferFrom failed"
-        );
-        amountEmpire = IERC20(empire).balanceOf(address(this)) - amountEmpire;
-
-        require(
-            IERC20(empire).approve(router, amountEmpire),
-            "MiniRouter: Approve failed"
-        );
-    }
-
-    function _addLiquidityETH(
-        address router,
-        uint256 amountEmpire,
-        uint256 ethAmount,
-        address to,
-        uint256 deadline
-    )
-        private
-        returns (
-            uint256 amountToken,
-            uint256 amountETH,
-            uint256 liquidity
-        )
-    {
-        uint256 amountEmpireAdded = IERC20(empire).balanceOf(address(this));
-
-        (amountToken, amountETH, liquidity) = IUniswapV2Router02(router)
-            .addLiquidityETH{value: ethAmount}(
-            empire,
-            amountEmpire,
-            0,
-            0,
-            to,
-            deadline
-        );
-
-        amountEmpireAdded =
-            amountEmpireAdded -
-            IERC20(empire).balanceOf(address(this));
-
-        require(
-            amountEmpireAdded == amountToken,
-            "MiniRouter: AddLiquidity failed"
-        );
-    }
-
     function addLiquidityETH(
         address router,
         uint256 amountEmpireDesired,
@@ -259,29 +196,24 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         payable
         whenNotPaused
         nonReentrant
+        ensure(router, amountEmpireDesired)
         returns (
             uint256 amountToken,
             uint256 amountETH,
             uint256 liquidity
         )
     {
-        uint256 amountEmpire = beforeAddLiquidityETH(
-            router,
-            amountEmpireDesired
-        );
-
-        (amountToken, amountETH, liquidity) = _addLiquidityETH(
-            router,
-            amountEmpire,
-            msg.value,
+        (amountToken, amountETH, liquidity) = IUniswapV2Router02(router)
+            .addLiquidityETH{value: msg.value}(
+            empire,
+            amountEmpireDesired,
+            0,
+            0,
             to,
             deadline
         );
 
-        require(amountEmpire >= amountToken, "Empire: Insufficient funds");
-        require(msg.value >= amountETH, "ETH: Insufficient funds");
-
-        uint256 amountEmpireRefund = amountEmpire - amountToken;
+        uint256 amountEmpireRefund = amountEmpireDesired - amountToken;
         uint256 amountETHRefund = msg.value - amountETH;
 
         if (amountEmpireRefund > 0) {
@@ -301,7 +233,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         emit LogAddLiquidityETH(
             msg.sender,
             router,
-            amountEmpire,
+            amountToken,
             amountETH,
             liquidity,
             to
