@@ -143,7 +143,6 @@ contract EmpireToken is IERC20, Ownable {
     event LogSetBuyFees(address indexed setter, BuyFee buyFee);
     event LogSetSellFees(address indexed setter, SellFee sellFee);
     event LogSetRouterAddress(address indexed setter, address router);
-    event LogUpdateGasForProcessing(address indexed setter, uint256 value);
     event LogUpdateLiquidityWallet(
         address indexed setter,
         address liquidityWallet
