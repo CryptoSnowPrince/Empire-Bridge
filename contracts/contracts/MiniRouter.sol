@@ -57,12 +57,20 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         uint256 liquidity,
         address to
     );
+    event LogRemoveLiquidityTokens(
+        address indexed from,
+        address indexed router,
+        address indexed tokenB,
+        uint256 liquidity,
+        uint256 amountA,
+        uint256 amountB,
+        address to
+    );
 
     // event LogSetPair(address pair);
     // event LogDeletePair(address pair);
 
     // event LogRemoveLiquidityETH(address recipient, uint256 liquidity, address router);
-    // event LogRemoveLiquidityTokens(address recipient, uint256 liquidity, address router, address tokenB);
 
     constructor(address empire_, address router) {
         setEmpire(empire_);
@@ -70,7 +78,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         updateSupportedRouters(router, true);
     }
 
-    modifier ensure(address router, uint256 amountEmpireDesired) {
+    function ensure(address router) private view {
         require(
             IEmpire(empire).isExcludedFromFee(address(this)) == true,
             "MiniRouter: The Router must be excluded from fee"
@@ -80,6 +88,10 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             supportedRouters[router] == true,
             "MiniRouter: The Router is not supported"
         );
+    }
+
+    modifier ensureAddLiquidity(address router, uint256 amountEmpireDesired) {
+        ensure(router);
 
         require(
             IERC20(empire).transferFrom(
@@ -92,6 +104,36 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
 
         require(
             IERC20(empire).approve(router, amountEmpireDesired),
+            "MiniRouter: Approve failed"
+        );
+
+        _;
+    }
+
+    modifier ensureRemoveLiquidity(
+        address router,
+        address tokenB,
+        uint256 liquidity
+    ) {
+        ensure(router);
+
+        require(
+            supportedTokens[tokenB] == true,
+            "MiniRouter: The TokenB is not supported"
+        );
+
+        address pair = IUniswapV2Factory(IUniswapV2Router02(router).factory())
+            .getPair(empire, tokenB);
+
+        require(pair != address(0), "MiniRouter: Pair does not exist");
+
+        require(
+            IERC20(pair).transferFrom(msg.sender, address(this), liquidity),
+            "MiniRouter: TransferFrom failed"
+        );
+
+        require(
+            IERC20(pair).approve(router, liquidity),
             "MiniRouter: Approve failed"
         );
 
@@ -134,18 +176,14 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         external
         whenNotPaused
         nonReentrant
-        ensure(router, amountEmpireDesired)
+        ensureAddLiquidity(router, amountEmpireDesired)
         returns (
             uint256 amountA,
             uint256 amountB,
             uint256 liquidity
         )
     {
-        beforeAddLiquidityTokens(
-            router,
-            tokenB,
-            amountTokenBDesired
-        );
+        beforeAddLiquidityTokens(router, tokenB, amountTokenBDesired);
 
         (amountA, amountB, liquidity) = IUniswapV2Router02(router).addLiquidity(
             empire,
@@ -196,7 +234,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         payable
         whenNotPaused
         nonReentrant
-        ensure(router, amountEmpireDesired)
+        ensureAddLiquidity(router, amountEmpireDesired)
         returns (
             uint256 amountToken,
             uint256 amountETH,
@@ -236,6 +274,40 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             amountToken,
             amountETH,
             liquidity,
+            to
+        );
+    }
+
+    function removeLiquidityTokens(
+        address router,
+        address tokenB,
+        uint256 liquidity,
+        address to,
+        uint256 deadline
+    )
+        external
+        whenNotPaused
+        nonReentrant
+        ensureRemoveLiquidity(router, tokenB, liquidity)
+        returns (uint256 amountA, uint256 amountB)
+    {
+        (amountA, amountB) = IUniswapV2Router02(router).removeLiquidity(
+            empire,
+            tokenB,
+            liquidity,
+            0,
+            0,
+            to,
+            deadline
+        );
+
+        emit LogRemoveLiquidityTokens(
+            msg.sender,
+            router,
+            tokenB,
+            liquidity,
+            amountA,
+            amountB,
             to
         );
     }
