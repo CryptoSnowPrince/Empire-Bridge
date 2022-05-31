@@ -16,10 +16,15 @@ interface IEmpire {
 }
 
 contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
+    ///@notice MiniRouter must be excluded from Empire buy/sell fee
     address public empire;
 
+    ///@notice The only owner can add or remove new router, but before add, owner must check its contract.
     mapping(address => bool) public supportedRouters;
+
+    ///@notice The only owner can add or remove new token, but before add, owner must check token contract.
     mapping(address => bool) public supportedTokens;
+
     ///@notice router addr + second token addr = pair addr
     mapping(address => mapping(address => address)) public pairAddr;
     mapping(address => bool) public pairExists;
@@ -87,7 +92,11 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         );
 
         require(
-            IERC20(empire).transferFrom(msg.sender, address(this), amountEmpireDesired),
+            IERC20(empire).transferFrom(
+                msg.sender,
+                address(this),
+                amountEmpireDesired
+            ),
             "MiniRouter: TransferFrom failed"
         );
 
@@ -96,7 +105,6 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             "MiniRouter: Approve failed"
         );
 
-        amountTokenB = IERC20(tokenB).balanceOf(address(this));
         require(
             IERC20(tokenB).transferFrom(
                 msg.sender,
@@ -145,7 +153,9 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             deadline
         );
 
-        amountEmpireAdded = amountEmpireAdded - IERC20(empire).balanceOf(address(this));
+        amountEmpireAdded =
+            amountEmpireAdded -
+            IERC20(empire).balanceOf(address(this));
         amountTokenBAdded =
             amountTokenBAdded -
             IERC20(tokenB).balanceOf(address(this));
@@ -235,7 +245,11 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
 
         amountEmpire = IERC20(empire).balanceOf(address(this));
         require(
-            IERC20(empire).transferFrom(msg.sender, address(this), amountEmpireDesired),
+            IERC20(empire).transferFrom(
+                msg.sender,
+                address(this),
+                amountEmpireDesired
+            ),
             "MiniRouter: TransferFrom failed"
         );
         amountEmpire = IERC20(empire).balanceOf(address(this)) - amountEmpire;
@@ -272,7 +286,9 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             deadline
         );
 
-        amountEmpireAdded = amountEmpireAdded - IERC20(empire).balanceOf(address(this));
+        amountEmpireAdded =
+            amountEmpireAdded -
+            IERC20(empire).balanceOf(address(this));
 
         require(
             amountEmpireAdded == amountToken,
