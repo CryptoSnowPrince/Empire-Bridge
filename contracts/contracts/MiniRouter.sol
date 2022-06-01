@@ -428,18 +428,9 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
                 liquidity,
                 0,
                 0,
-                address(this),
+                to,
                 deadline
             );
-
-        if (amountToken > 0) {
-            require(IERC20(empire).transfer(to, amountToken), "Transfer fail");
-        }
-
-        if (amountETH > 0) {
-            (bool success, ) = to.call{value: amountETH}(new bytes(0));
-            require(success, "ETH Transfer fail");
-        }
 
         emit LogRemoveLiquidityETH(
             msg.sender,
