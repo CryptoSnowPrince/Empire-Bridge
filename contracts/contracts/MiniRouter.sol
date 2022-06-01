@@ -145,7 +145,12 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         address to
     );
 
-    constructor(address empire_, address router_, address weth_, address busd_) {
+    constructor(
+        address empire_,
+        address router_,
+        address weth_,
+        address busd_
+    ) {
         setEmpire(empire_);
 
         updateSupportedRouters(router_, true);
@@ -341,7 +346,7 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             (bool success, ) = msg.sender.call{value: amountETHRefund}(
                 new bytes(0)
             );
-            require(success, "ETH Refund fail");
+            require(success, "ETH Transfer fail");
         }
 
         emit LogAddLiquidityETH(
@@ -373,9 +378,17 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
             liquidity,
             0,
             0,
-            to,
+            address(this),
             deadline
         );
+
+        if (amountA > 0) {
+            require(IERC20(empire).transfer(to, amountA), "Transfer fail");
+        }
+
+        if (amountB > 0) {
+            require(IERC20(tokenB).transfer(to, amountB), "Transfer fail");
+        }
 
         emit LogRemoveLiquidityTokens(
             msg.sender,
@@ -405,7 +418,23 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         returns (uint256 amountToken, uint256 amountETH)
     {
         (amountToken, amountETH) = IUniswapV2Router02(router)
-            .removeLiquidityETH(empire, liquidity, 0, 0, to, deadline);
+            .removeLiquidityETH(
+                empire,
+                liquidity,
+                0,
+                0,
+                address(this),
+                deadline
+            );
+
+        if (amountToken > 0) {
+            require(IERC20(empire).transfer(to, amountToken), "Transfer fail");
+        }
+
+        if (amountETH > 0) {
+            (bool success, ) = to.call{value: amountETH}(new bytes(0));
+            require(success, "ETH Transfer fail");
+        }
 
         emit LogRemoveLiquidityETH(
             msg.sender,
