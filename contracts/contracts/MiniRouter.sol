@@ -417,6 +417,11 @@ contract MiniRouter is Ownable, Pausable, ReentrancyGuard {
         )
         returns (uint256 amountToken, uint256 amountETH)
     {
+        require(
+            IEmpire(empire).isExcludedFromFee(router) == true,
+            "MiniRouter: The `router` must be excluded from fee"
+        );
+
         (amountToken, amountETH) = IUniswapV2Router02(router)
             .removeLiquidityETH(
                 empire,
